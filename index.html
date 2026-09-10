@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForceCreate v3.2 — HyperForge Edition</title>
+    <!-- Локальная копия библиотеки skinview3d -->
+    <script src="./scripts/skinview3d.bundle.js"></script>
+    <style>
+        :root {
+            --bg-color: #030712;
+            --card-bg: rgba(12, 18, 32, 0.78);
+            --primary: #38bdf8;
+            --secondary: #ff4d8d;
+            --accent: #8b5cf6;
+            --gold: #fbbf24;
+            --text: #edf6ff;
+            --text-dim: #9fb6cf;
+            --holo-glow: rgba(56, 189, 248, 0.4);
+            --pink-glow: rgba(255, 77, 141, 0.38);
+            --border-color: rgba(56, 189, 248, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Эффект сканирующей линии (Cyber Scanline) */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 999;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* Анимированный кибер-фон */
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(circle at 50% 30%, rgba(112, 0, 255, 0.2), transparent 70%),
+                radial-gradient(circle at 80% 80%, rgba(0, 240, 255, 0.15), transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            animation: gridMove 15s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes gridMove {
+            0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+            100% { background-position: 0 0, 0 0, 0 40px, 40px 0; }
+        }
+
+        /* ВЕРХНЯЯ ШАПКА */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 2rem;
+            background: rgba(4, 6, 10, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Логотип */
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #fff;
+            text-transform: uppercase;
+            text-shadow: 0 0 12px var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo span { color: var(--primary); }
+
+        .private-badge {
+            font-size: 0.65rem;
+            background: linear-gradient(135deg, rgba(255, 0, 85, 0.25), rgba(112, 0, 255, 0.25));
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+            padding: 4px 8px;
+            border-radius: 6px;
+            letter-spacing: 1.5px;
+            box-shadow: 0 0 12px var(--pink-glow);
+        }
+
+        /* БУРГЕР МЕНИЮ (КОНТЕЙНЕР) */
+        .burger-container {
+            position: relative;
+        }
+
+        .burger-btn {
+            background: rgba(10, 14, 26, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--primary);
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+        }
+
+        .burger-btn:hover, .burger-btn.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--holo-glow);
+            background: rgba(0, 240, 255, 0.15);
+        }
+
+        .burger-line {
+            width: 22px;
+            height: 2px;
+            background-color: var(--primary);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        /* Выпадающее меню */
+        .burger-dropdown {
+            position: absolute;
+            top: 55px;
+            right: 0;
+            width: 200px;
+            background: rgba(10, 14, 26, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--primary);
+            border-radius: 14px;
+            padding: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 200;
+        }
+
+        .burger-dropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .menu-item {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 10px 14px;
+            border-radius: 8px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            color: #fff;
+            background: linear-gradient(90deg, rgba(0, 240, 255, 0.2), transparent);
+            border-left: 3px solid var(--primary);
+            padding-left: 16px;
+        }
+
+        main {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 3rem 1.5rem;
+        }
+
+        .page-section {
+            display: block;
+            margin-bottom: 2rem;
+        }
+
+        .page-section.active { display: block; }
+
+        .reveal-on-scroll {
+            opacity: 0;
+            transform: translateY(42px);
+            transition: opacity 0.75s ease, transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: opacity, transform;
+        }
+
+        .reveal-on-scroll.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal-on-scroll {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Главная страница */
+        .hero { text-align: center; padding: 2rem 0; }
+
+        .version-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 15px var(--holo-glow);
+        }
+
+        .hero-title {
+            font-size: clamp(2.2rem, 6vw, 4rem);
+            font-weight: 900;
+            margin-bottom: 1.2rem;
+            background: linear-gradient(135deg, #fff 30%, var(--primary) 70%, var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .hero-desc {
+            max-width: 680px;
+            margin: 0 auto 2.5rem;
+            color: var(--text-dim);
+            font-size: clamp(1rem, 2vw, 1.15rem);
+            line-height: 1.7;
+        }
+
+        .telegram-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 250px;
+            overflow: hidden;
+            background: #b7ff2a;
+            color: #071000;
+            padding: 16px 28px;
+            border: 1px solid #d7ff80;
+            border-radius: 14px;
+            font-weight: 900;
+            font-size: 1rem;
+            letter-spacing: 0.4px;
+            text-decoration: none;
+            box-shadow: 0 0 18px rgba(183, 255, 42, 0.55), 0 8px 24px rgba(0, 0, 0, 0.35);
+            animation: telegramPulse 2.2s ease-in-out infinite;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .telegram-btn::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.7) 50%, transparent 70%);
+            transform: translateX(-130%);
+            animation: telegramShine 3.2s ease-in-out infinite;
+        }
+
+        .telegram-btn:hover {
+            box-shadow: 0 0 32px rgba(183, 255, 42, 0.85), 0 12px 28px rgba(0, 0, 0, 0.4);
+            transform: translateY(-5px) scale(1.03);
+        }
+
+        @keyframes telegramPulse {
+            0%, 100% { box-shadow: 0 0 18px rgba(183, 255, 42, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35); }
+            50% { box-shadow: 0 0 32px rgba(183, 255, 42, 0.9), 0 8px 24px rgba(0, 0, 0, 0.35); }
+        }
+
+        @keyframes telegramShine {
+            0%, 35% { transform: translateX(-130%); }
+            65%, 100% { transform: translateX(130%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .telegram-btn,
+            .telegram-btn::before {
+                animation: none;
+            }
+        }
+
+        /* Карточки информации и описания */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 1rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 1.8rem;
+            backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 35px rgba(0, 240, 255, 0.2);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            color: #fff;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+        }
+
+        .mods-list { list-style: none; }
+        .mods-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            justify-content: space-between;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .mod-highlight { color: var(--gold); font-weight: 700; text-shadow: 0 0 10px rgba(255, 183, 0, 0.4); }
+
+        .section-title {
+            text-align: center;
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            margin-bottom: 2rem;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+        }
+
+        /* Сетка игроков */
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(220px, 1fr));
+            gap: 30px;
+            justify-content: center;
+            align-items: start;
+        }
+
+        .player-card {
+            min-height: 440px;
+        }
+
+        @media (max-width: 1100px) {
+            .players-grid {
+                grid-template-columns: repeat(2, minmax(220px, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .players-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .player-card {
+            --rank-color: var(--primary);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem 1.5rem 1.5rem;
+            text-align: center;
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .player-card.role-admin-card {
+            --rank-color: var(--secondary);
+            background: rgba(255, 35, 35, 0.16);
+            border-color: rgba(255, 48, 48, 0.75);
+            box-shadow: 0 0 24px rgba(255, 35, 35, 0.26);
+        }
+
+        .player-card.role-brother-card {
+            --rank-color: var(--gold);
+            background: rgba(251, 191, 36, 0.1);
+            border-color: rgba(251, 191, 36, 0.55);
+            box-shadow: 0 0 22px rgba(251, 191, 36, 0.16);
+        }
+
+        .player-card.role-admin-card:hover {
+            border-color: var(--rank-color);
+            box-shadow: 0 15px 40px rgba(255, 35, 35, 0.5);
+            transform: translateY(-8px);
+        }
+
+        .role-admin-card .skin-3d-wrapper {
+            background: radial-gradient(ellipse at bottom, rgba(255, 35, 35, 0.24) 0%, transparent 70%);
+        }
+
+        .player-card.role-brother-card:hover {
+            border-color: var(--rank-color);
+            box-shadow: 0 15px 40px rgba(251, 191, 36, 0.38);
+            transform: translateY(-8px);
+        }
+
+        .player-card:hover {
+            border-color: var(--rank-color);
+            box-shadow: 0 15px 40px rgba(0, 240, 255, 0.15);
+            transform: translateY(-8px);
+        }
+
+        .skin-3d-wrapper {
+            width: 220px;
+            height: 280px;
+            position: relative;
+            margin-bottom: 1rem;
+            border-radius: 16px;
+            background: radial-gradient(ellipse at bottom, rgba(0,240,255,0.15) 0%, transparent 70%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Голографический цоколь -23px */
+        .skin-3d-wrapper::after {
+            content: '';
+            position: absolute;
+            bottom: -23px; 
+            left: 50%;
+            transform: translate(-50%, 0) rotateX(65deg);
+            width: 120px; 
+            height: 120px;
+            border-radius: 50%;
+            border: 2px dashed var(--rank-color);
+            box-shadow: 0 0 18px var(--rank-color), inset 0 0 18px var(--rank-color);
+            animation: spinPedestal 10s linear infinite;
+            pointer-events: none;
+            z-index: 1;
+            transition: all 0.4s ease;
+        }
+
+        .skin-3d-wrapper.is-walking::after {
+            box-shadow: 0 0 28px var(--rank-color), inset 0 0 22px var(--rank-color);
+            animation-duration: 3s;
+        }
+
+        .role-brother-card .skin-3d-wrapper {
+            background: radial-gradient(ellipse at bottom, rgba(251, 191, 36, 0.2) 0%, transparent 70%);
+        }
+
+        @keyframes spinPedestal {
+            from { transform: translate(-50%, 0) rotateX(65deg) rotateZ(0deg); }
+            to { transform: translate(-50%, 0) rotateX(65deg) rotateZ(360deg); }
+        }
+
+        .skin-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            position: relative;
+            z-index: 2;
+        }
+
+        .skin-canvas:active { cursor: grabbing; }
+
+        .skin-error-msg {
+            display: none;
+            position: absolute;
+            color: var(--secondary);
+            font-size: 0.85rem;
+            padding: 10px;
+            z-index: 3;
+            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        .controls-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1rem;
+            z-index: 5;
+        }
+
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .ctrl-btn:hover {
+            background: rgba(0, 240, 255, 0.2);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .player-name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 0.4rem;
+            letter-spacing: 0.5px;
+        }
+
+        .player-name-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 0.4rem;
+        }
+
+        .lunar-client-badge {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .rank-group {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .rank-badge-item {
+            position: relative;
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.04);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        .role-admin-card .rank-badge-item {
+            border-color: rgba(255, 48, 48, 0.7);
+            box-shadow: 0 0 14px rgba(255, 35, 35, 0.3);
+        }
+
+        .rank-badge-item:hover {
+            transform: translateY(-2px) scale(1.04);
+            border-color: var(--primary);
+            box-shadow: 0 0 18px rgba(0, 240, 255, 0.22);
+        }
+
+        .role-admin-card .rank-badge-item:hover {
+            border-color: #ff3030;
+            box-shadow: 0 0 20px rgba(255, 35, 35, 0.55);
+        }
+
+        .role-brother-card .rank-badge-item {
+            border-color: rgba(251, 191, 36, 0.65);
+            box-shadow: 0 0 14px rgba(251, 191, 36, 0.28);
+        }
+
+        .role-brother-card .rank-badge-item:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+        }
+
+        .rank-badge-item img {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 4px rgba(255,255,255,0.25));
+        }
+
+        .rank-tooltip {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            opacity: 0;
+            visibility: hidden;
+            background: rgba(5, 10, 18, 0.96);
+            color: #fff;
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            white-space: nowrap;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .rank-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px 6px 0 6px;
+            border-style: solid;
+            border-color: var(--primary) transparent transparent transparent;
+        }
+
+        .rank-badge-item:hover .rank-tooltip,
+        .rank-badge-item:focus-within .rank-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .role-admin {
+            background: rgba(255, 0, 85, 0.15);
+            color: var(--secondary);
+            border: 1px solid var(--secondary);
+            box-shadow: 0 0 12px var(--pink-glow);
+        }
+
+        .role-member {
+            background: rgba(0, 240, 255, 0.15);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 12px var(--holo-glow);
+        }
+
+        .role-brother {
+            background: rgba(251, 191, 36, 0.2);
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            box-shadow: 0 0 14px rgba(251, 191, 36, 0.42);
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            background: rgba(4, 6, 10, 0.8);
+            margin-top: auto;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .social-link {
+            display: inline-flex;
+            align-items: center;
+            min-width: 112px;
+            justify-content: center;
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-weight: 700;
+            transition: color 0.25s ease, border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .social-link:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 16px var(--holo-glow);
+            transform: translateY(-2px);
+        }
+
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background: #030712;
+            transition: opacity 0.45s ease, visibility 0.45s ease;
+        }
+
+        .loading-screen.is-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loading-panel {
+            width: min(100%, 420px);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            background: rgba(12, 18, 32, 0.92);
+            border: 1px solid var(--primary);
+            border-radius: 18px;
+            box-shadow: 0 0 45px var(--holo-glow);
+        }
+
+        .loading-logo {
+            margin-bottom: 1rem;
+            color: #fff;
+            font-size: 1.7rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 12px var(--primary);
+        }
+
+        .loading-title {
+            margin-bottom: 0.7rem;
+            color: var(--primary);
+            font-size: 1.15rem;
+        }
+
+        .loading-message {
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .loading-spinner {
+            width: 42px;
+            height: 42px;
+            margin: 0 auto 1.4rem;
+            border: 3px solid rgba(56, 189, 248, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: loadingSpin 0.9s linear infinite;
+        }
+
+        @keyframes loadingSpin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-screen" id="loading-screen" role="status" aria-live="polite">
+        <div class="loading-panel">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <div class="loading-logo">Force<span style="color: var(--primary);">Create</span></div>
+            <h1 class="loading-title">Загрузка сайта</h1>
+            <p class="loading-message" id="loading-message">Пожалуйста, подождите...</p>
+        </div>
+    </div>
+
+    <div class="bg-grid"></div>
+
+    <!-- ВЕРХНЯЯ ШАПКА -->
+    <header>
+        <div class="logo">
+            Force<span>Create</span>
+            <span class="private-badge">PRIVATE</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- 1. ГЛАВНАЯ СТРАНИЦА -->
+        <section id="main-page" class="page-section active">
+            <div class="hero">
+                <div class="version-tag"><span>⚡</span> ОБНОВЛЕНИЕ 3.2 HYPERFORGE</div>
+                <h1 class="hero-title">Новая Эпоха Машин, Энергии & Свободы</h1>
+                <p class="hero-desc">
+                    ForceCreate 3.2 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ.
+                </p>
+
+                <a class="telegram-btn" href="https://t.me/Timur_Lag" target="_blank" rel="noopener noreferrer">Подать заявку в ТГ</a>
+            </div>
+        </section>
+
+        <!-- 2. СТРАНИЦА ИНФОРМАЦИЯ -->
+        <section id="info-page" class="page-section">
+            <h2 class="section-title">Информация о сервере</h2>
+            <div class="info-grid">
+                <div class="card">
+                    <div class="card-title"><span>⚙️</span> Платформа</div>
+                    <ul class="mods-list">
+                        <li><span>Версия игры</span> <strong>Minecraft 1.21.1</strong></li>
+                        <li><span>Ядро</span> <strong>NeoForge 3.2</strong></li>
+                        <li><span>Тип доступа</span> <strong style="color: var(--secondary);">Whitelist</strong></li>
+                        <li><span>Серверное время</span> <strong>24/7 Uptime</strong></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><span>🛠️</span> Ключевые Моды</div>
+                    <ul class="mods-list">
+                        <li><span>Все дополнения</span> <span class="mod-highlight">Create Ecosystem</span></li>
+                        <li><span>Энергосети</span> <span class="mod-highlight">Create: Power Grid</span></li>
+                        <li><span>Авиация</span> <span class="mod-highlight">Create: Aeronautics</span></li>
+                        <li><span>Доп. контент</span> <span>+35 Аддонов</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. СТРАНИЦА ОПИСАНИЕ -->
+        <section id="desc-page" class="page-section">
+            <h2 class="section-title">Концепция Проекта</h2>
+            <div class="card" style="max-width: 800px; margin: 0 auto; line-height: 1.8;">
+                <div class="card-title"><span>🚀</span> О сервере ForceCreate</div>
+                <p style="color: var(--text-dim); margin-bottom: 1rem;">
+                    <strong>ForceCreate 3.2</strong> — это закрытое инженерное сообщество нового уровня. Здесь акцент смещён на масштабные промышленные проекты, энергоинфраструктуру, логистику и командную работу над по-настоящему большими сооружениями.
+                </p>
+                <p style="color: var(--text-dim); margin-bottom: 1rem;">
+                    В обновлении 3.2 добавлена ещё более глубокая атмосфера совместной игры: от автоматизированных линий до сложных сетей транспорта, воздушного сообщения и креативных инженерных решений. Безопасность и доверие строятся вокруг whitelist, логов и общих правил сообщества.
+                </p>
+                <p style="color: var(--text-dim);">
+                    Создавайте синхронизированные механизмы, строите высокоточные заводы и развивайте единую сеть производства вместе с ForceCreate.
+                </p>
+            </div>
+        </section>
+
+        <!-- 4. СТРАНИЦА ИГРОКОВ -->
+        <section id="players-page" class="page-section">
+            <h2 class="section-title">Состав Сервера</h2>
+            
+            <div class="players-grid">
+                <!-- КАРТОЧКА: Timur_Lag (Администратор — Красный/Розовый цоколь) -->
+<div class="player-card role-admin-card" data-player="Timur_Lag">
+                    <div class="skin-3d-wrapper">
+                        <canvas id="skin-container-timur" class="skin-canvas"></canvas>
+                        <div id="error-timur" class="skin-error-msg">⚠️ Файл Timur_Lag.png не найден</div>
+                    </div>
+
+                    <div class="player-name">Timur_Lag</div>
+                    <div class="role-badge role-admin">Администратор</div>                    <div class="rank-group" aria-label="Ранги">
+                        <div class="rank-badge-item" tabindex="0" title="Строитель">
+                            <img src="./assets/builder.png" alt="Строитель">
+                            <span class="rank-tooltip">Строитель</span>
+                        </div>
+                        <div class="rank-badge-item" tabindex="0" title="Инженер">
+                            <img src="./assets/engineer.png" alt="Инженер">
+                            <span class="rank-tooltip">Инженер</span>
+                        </div>
+                        <div class="rank-badge-item" tabindex="0" title="Мудрый">
+                            <img src="./assets/wise.png" alt="Мудрый">
+                            <span class="rank-tooltip">Мудрый</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- КАРТОЧКА: Emran_Lag (Брат — Желтый цоколь) -->
+                <div class="player-card role-brother-card" data-player="Emran_Lag">
+                    <div class="skin-3d-wrapper">
+                        <canvas id="skin-container-emran" class="skin-canvas"></canvas>
+                        <div id="error-emran" class="skin-error-msg">⚠️ Файл emran_lag.png не найден</div>
+                    </div>
+
+                    <div class="player-name">Emran_Lag</div>
+                    <div class="role-badge role-brother">Брат</div>
+                    <div class="rank-group" aria-label="Ранги">
+                        <div class="rank-badge-item" tabindex="0" title="ПВП">
+                            <img src="./assets/pvp.png" alt="ПВП">
+                            <span class="rank-tooltip">ПВП</span>
+                        </div>
+                        <div class="rank-badge-item" tabindex="0" title="Умный">
+                            <img src="./assets/wise.png" alt="Умный">
+                            <span class="rank-tooltip">Умный</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- КАРТОЧКА: DoveSak (Участник — Голубой цоколь) -->
+                <div class="player-card" data-player="DoveSak">
+                    <div class="skin-3d-wrapper">
+                        <canvas id="skin-container-dovesak" class="skin-canvas"></canvas>
+                        <div id="error-dovesak" class="skin-error-msg">⚠️ Файл dovesak.png не найден</div>
+                    </div>
+
+                    <div class="player-name">DoveSak</div>
+                    <div class="role-badge role-member">Участник</div>                    <div class="rank-group" aria-label="Ранги">
+                        <div class="rank-badge-item" tabindex="0" title="ПВП">
+                            <img src="./assets/pvp.png" alt="ПВП">
+                            <span class="rank-tooltip">ПВП</span>
+                        </div>
+                        <div class="rank-badge-item" tabindex="0" title="ПВЕ">
+                            <img src="./assets/pve.png" alt="ПВЕ">
+                            <span class="rank-tooltip">ПВЕ</span>
+                        </div>
+                        <div class="rank-badge-item" tabindex="0" title="Чародей">
+                            <img src="./assets/enchanter.png" alt="Чародей">
+                            <span class="rank-tooltip">Чародей</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="player-card" data-player="Lesovik">
+                    <div class="skin-3d-wrapper">
+                        <canvas id="skin-container-Lesovik" class="skin-canvas"></canvas>
+                        <div id="error-Lesovik" class="skin-error-msg">⚠️ Файл Lesovik.png не найден</div>
+                    </div>
+
+                    <div class="player-name-wrap">
+                        <div class="player-name">Lesovik</div>
+                        <img class="lunar-client-badge" src="./assets/lunar-client-logo.svg" alt="Lunar Client" title="Lunar Client">
+                    </div>
+                    <div class="role-badge role-member">Участник</div>
+                    <div class="rank-group" aria-label="Ранги">
+                        <div class="rank-badge-item" tabindex="0" title="Рубка">
+                            <img src="./assets/woodcutting.png" alt="Рубка">
+                            <span class="rank-tooltip">Рубка</span>
+                        </div>
+                        <div class="rank-badge-item" tabindex="0" title="Лесник">
+                            <img src="./assets/forester.png" alt="Лесник">
+                            <span class="rank-tooltip">Лесник</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <nav class="social-links" aria-label="Социальные сети">
+            <a class="social-link" href="https://steamcommunity.com/profiles/76561198654105465/" target="_blank" rel="noopener noreferrer">Steam</a>
+            <a class="social-link" href="https://t.me/Timur_Lag" target="_blank" rel="noopener noreferrer">Telegram: @Timur_Lag</a>
+            <a class="social-link" href="https://discord.com/users/timur_lag" target="_blank" rel="noopener noreferrer">Discord: timur_lag</a>
+            <a class="social-link" href="https://max.ru/u/f9LHodD0cOI8E4om4ahjP98gM4Z8F0zv2d_M57qykYKpmWOudwR-40NPXio" target="_blank" rel="noopener noreferrer">MAX</a>
+        </nav>
+        &copy; 2026 ForceCreate Server. Все права защищены.
+    </footer>
+
+    <script>
+        const viewers = {};
+
+        function loadSkinSafe(id, canvasId, errorId, skinPath) {
+            const canvas = document.getElementById(canvasId);
+            const errorElement = document.getElementById(errorId);
+
+            if (!canvas || typeof skinview3d === 'undefined') return;
+
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    viewers[id] = new skinview3d.SkinViewer({
+                        canvas: canvas,
+                        width: 220,
+                        height: 280,
+                        skin: skinPath
+                    });
+                    configureViewer(viewers[id]);
+                } catch (e) {
+                    console.error("Ошибка инициализации 3D-модели: ", e);
+                }
+            };
+            img.onerror = () => {
+                if (errorElement) errorElement.style.display = "block";
+            };
+            img.src = skinPath;
+        }
+
+        function configureViewer(viewer) {
+            if (!viewer) return;
+            viewer.autoRotate = true;
+            viewer.autoRotateSpeed = 0.7;
+            viewer.animation = new skinview3d.WalkingAnimation();
+            viewer.animation.speed = 0.6;
+            viewer.fov = 65;
+            viewer.zoom = 0.85;
+
+            const wrapper = viewer.canvas.closest('.skin-3d-wrapper');
+            if (wrapper) wrapper.classList.add('is-walking');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSkinSafe('timur', 'skin-container-timur', 'error-timur', './assets/Timur_Lag.png');
+            loadSkinSafe('dovesak', 'skin-container-dovesak', 'error-dovesak', './assets/DoveSak.png');
+            loadSkinSafe('Lesovik', 'skin-container-Lesovik', 'error-Lesovik', './assets/Lesovik.png');
+            loadSkinSafe('emran', 'skin-container-emran', 'error-emran', './assets/emran_lag.png');
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('is-hidden');
+            }, 1500);
+
+            initializeScrollReveal();
+        });
+
+        function initializeScrollReveal() {
+            const revealItems = document.querySelectorAll(
+                'main .page-section, main .info-grid > .card, main .page-section > .card, main .players-grid > .player-card, footer'
+            );
+
+            revealItems.forEach((item, index) => {
+                item.classList.add('reveal-on-scroll');
+                item.style.transitionDelay = `${(index % 4) * 90}ms`;
+            });
+
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+                revealItems.forEach(item => item.classList.add('is-visible'));
+                return;
+            }
+
+            const revealObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                });
+            }, { threshold: 0.12, rootMargin: '0px 0px -40px' });
+
+            revealItems.forEach(item => revealObserver.observe(item));
+        }
+
+        function toggleRotate(key) {
+            if (viewers[key]) {
+                viewers[key].autoRotate = !viewers[key].autoRotate;
+            }
+        }
+
+        function toggleWalk(key) {
+            if (viewers[key]) {
+                const canvas = viewers[key].canvas;
+                const wrapper = canvas.closest('.skin-3d-wrapper');
+
+                if (viewers[key].animation) {
+                    viewers[key].animation = null;
+                    if (wrapper) wrapper.classList.remove('is-walking');
+                } else {
+                    viewers[key].animation = new skinview3d.WalkingAnimation();
+                    viewers[key].animation.speed = 0.6;
+                    if (wrapper) wrapper.classList.add('is-walking');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
