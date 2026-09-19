@@ -687,371 +687,366 @@
     </footer>
 
     <script>
-        /* ============================================================
-           ForceCreate v3.3 — автозагрузка игроков из README.md
-           ------------------------------------------------------------
-           Скины ТОЛЬКО с ely.by. Прямой запрос → images.weserv.nl
-           (быстрый CDN-прокси картинок с CORS) → 2D-фолбэк.
-           Таймаут 4с на источник, чтобы не было долгих зависаний.
+    /* ============================================================
+       ForceCreate v3.3 — автозагрузка игроков из README.md
+       Скины ТОЛЬКО с ely.by.
+       ely.by отдаёт скин через 302-редирект на storage.ely.by,
+       поэтому используем CDN-прокси images.weserv.nl / wsrv.nl —
+       он сам следует за редиректом и добавляет CORS.
+       ============================================================ */
 
-           Формат README.md (по одному нику на строку):
-               Timur_Lag|admin
-               Emran_Lag|brother
-               DoveSak
-               Lesovik
-           Роли: member (default), admin, brother.
-           ============================================================ */
+    const viewers = {};
 
-        const viewers = {};
+    const ELY_RAW = (nick) => `ely.by/skins/${encodeURIComponent(nick)}.png`;
 
-        // Все источники ведут на ely.by/skins/<ник>.png.
-        // Прямой запрос — если CORS разрешён.
-        // weserv.nl — кэширующий CDN-прокси, добавляет CORS, отдаёт за ~50-200мс.
-        const ELY_RAW = (nick) => `ely.by/skins/${encodeURIComponent(nick)}.png`;
+    const ELY_SKIN_SOURCES = (nick) => {
+        const n = encodeURIComponent(nick);
+        const raw = ELY_RAW(nick);
+        return [
+            // 1. images.weserv.nl / wsrv.nl — быстрый CDN-прокси картинок.
+            //    Сам идёт по 302-редиректу ely.by → storage.ely.by и отдаёт CORS.
+            `https://images.weserv.nl/?url=${encodeURIComponent(raw)}&n=-1`,
+            `https://wsrv.nl/?url=${encodeURIComponent(raw)}&n=-1`,
 
-        const ELY_SKIN_SOURCES = (nick) => {
-            const n = encodeURIComponent(nick);
-            const raw = ELY_RAW(nick);
-            return [
-                // 1. Прямые запросы к ely.by (самый быстрый путь, если CORS есть)
-                `https://skinsystem.ely.by/skins/${n}.png`,
-                `https://ely.by/skins/${n}.png`,
-                // 2. images.weserv.nl / wsrv.nl — быстрый CDN с CORS
-                `https://images.weserv.nl/?url=${encodeURIComponent(raw)}&n=-1`,
-                `https://wsrv.nl/?url=${encodeURIComponent(raw)}&n=-1`,
-                // 3. codetabs — ещё один быстрый прокси
-                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://' + raw)}`,
-                // 4. allorigins — на самый крайний случай
-                `https://api.allorigins.win/raw?url=${encodeURIComponent('https://' + raw)}`
-            ];
-        };
+            // 2. codetabs — ещё один быстрый прокси, тоже следует редиректам
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://' + raw)}`,
 
-        const ROLE_META = {
-            admin:   { label: 'Администратор', badge: 'role-admin',   card: 'role-admin-card'   },
-            brother: { label: 'Брат',          badge: 'role-brother', card: 'role-brother-card' },
-            member:  { label: 'Участник',      badge: 'role-member',  card: ''                  }
-        };
+            // 3. Прямые запросы к ely.by. Если CORS вдруг разрешён — сработают мгновенно,
+            //    но обычно падают, поэтому они в конце очереди.
+            `https://skinsystem.ely.by/skins/${n}.png`,
+            `https://ely.by/skins/${n}.png`,
 
-        const FALLBACK_PLAYERS = [
-            { name: 'Timur_Lag', role: 'admin'   },
-            { name: 'Emran_Lag', role: 'brother' },
-            { name: 'DoveSak',   role: 'member'  },
-            { name: 'Lesovik',   role: 'member'  }
+            // 4. allorigins — на самый крайний случай
+            `https://api.allorigins.win/raw?url=${encodeURIComponent('https://' + raw)}`
         ];
+    };
 
-        /* ---------- Утилиты ---------- */
+    const ROLE_META = {
+        admin:   { label: 'Администратор', badge: 'role-admin',   card: 'role-admin-card'   },
+        brother: { label: 'Брат',          badge: 'role-brother', card: 'role-brother-card' },
+        member:  { label: 'Участник',      badge: 'role-member',  card: ''                  }
+    };
 
-        function escapeHtml(str) {
-            return String(str).replace(/[&<>"']/g, (c) => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[c]));
-        }
+    const FALLBACK_PLAYERS = [
+        { name: 'Timur_Lag', role: 'admin'   },
+        { name: 'Emran_Lag', role: 'brother' },
+        { name: 'DoveSak',   role: 'member'  },
+        { name: 'Lesovik',   role: 'member'  }
+    ];
 
-        function slugify(name) {
-            return String(name).toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'player';
-        }
+    /* ---------- Утилиты ---------- */
 
-        /* ---------- Парсинг README.md ---------- */
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
 
-        function parseReadme(text) {
-            const players = [];
-            const seen = new Set();
+    function slugify(name) {
+        return String(name).toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'player';
+    }
 
-            text.split(/\r?\n/).forEach((rawLine) => {
-                let line = rawLine.trim();
-                if (!line) return;
-                if (line.startsWith('#') || line.startsWith('//')) return;
+    /* ---------- Парсинг README.md ---------- */
 
-                line = line.replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '');
-                line = line.split(/\s+[—–]\s+/)[0];
+    function parseReadme(text) {
+        const players = [];
+        const seen = new Set();
 
-                const parts = line.split('|').map((s) => s.trim());
-                const name = parts[0];
-                let role = (parts[1] || 'member').toLowerCase();
+        text.split(/\r?\n/).forEach((rawLine) => {
+            let line = rawLine.trim();
+            if (!line) return;
+            if (line.startsWith('#') || line.startsWith('//')) return;
 
-                if (!name) return;
-                if (!ROLE_META[role]) role = 'member';
+            line = line.replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '');
+            line = line.split(/\s+[—–]\s+/)[0];
 
-                const key = name.toLowerCase();
-                if (seen.has(key)) return;
-                seen.add(key);
+            const parts = line.split('|').map((s) => s.trim());
+            const name = parts[0];
+            let role = (parts[1] || 'member').toLowerCase();
 
-                players.push({ name, role });
-            });
+            if (!name) return;
+            if (!ROLE_META[role]) role = 'member';
 
-            return players;
-        }
+            const key = name.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
 
-        /* ---------- Рендер карточек ---------- */
-
-        function renderPlayers(players) {
-            const grid = document.getElementById('players-grid');
-            if (!grid) return;
-
-            grid.innerHTML = '';
-
-            if (!players.length) {
-                const status = document.createElement('div');
-                status.className = 'players-status is-error';
-                status.textContent = 'README.md пуст — не найдено ни одного ника.';
-                grid.appendChild(status);
-                return;
-            }
-
-            players.forEach((player, index) => {
-                const meta = ROLE_META[player.role] || ROLE_META.member;
-                const slug = `${slugify(player.name)}_${index}`;
-                const canvasId = `skin-container-${slug}`;
-                const errorId = `error-${slug}`;
-                const fallbackId = `fallback-${slug}`;
-
-                const card = document.createElement('div');
-                card.className = `player-card ${meta.card}`.trim();
-                card.setAttribute('data-player', player.name);
-
-                card.innerHTML = `
-                    <div class="skin-3d-wrapper">
-                        <canvas id="${canvasId}" class="skin-canvas"></canvas>
-                        <div id="${fallbackId}" class="skin-2d-fallback">
-                            <img alt="${escapeHtml(player.name)}" />
-                        </div>
-                        <div id="${errorId}" class="skin-error-msg">
-                            ⚠️ Скин <b>${escapeHtml(player.name)}</b> не найден на ely.by
-                        </div>
-                    </div>
-                    <div class="player-name">${escapeHtml(player.name)}</div>
-                    <div class="role-badge ${meta.badge}">${meta.label}</div>
-                `;
-
-                grid.appendChild(card);
-
-                loadSkin(slug, canvasId, errorId, fallbackId, player.name);
-            });
-
-            initializeScrollReveal();
-        }
-
-        /* ---------- Загрузка скина с таймаутом ---------- */
-
-        async function fetchWithTimeout(url, ms = 4000) {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), ms);
-            try {
-                return await fetch(url, {
-                    method: 'GET',
-                    mode: 'cors',
-                    redirect: 'follow',
-                    cache: 'no-store',
-                    signal: controller.signal
-                });
-            } finally {
-                clearTimeout(timer);
-            }
-        }
-
-        async function fetchSkinBlob(nickname) {
-            const sources = ELY_SKIN_SOURCES(nickname);
-
-            for (const url of sources) {
-                const t0 = performance.now();
-                try {
-                    const res = await fetchWithTimeout(url, 4000);
-
-                    if (!res.ok) {
-                        console.warn(`[skin:${nickname}] ${url} → HTTP ${res.status} (${Math.round(performance.now() - t0)}мс)`);
-                        continue;
-                    }
-
-                    const ct = (res.headers.get('content-type') || '').toLowerCase();
-
-                    if (ct.includes('text/html')) {
-                        console.warn(`[skin:${nickname}] ${url} → HTML (скин не найден)`);
-                        continue;
-                    }
-
-                    const blob = await res.blob();
-                    if (!blob || blob.size < 64) {
-                        console.warn(`[skin:${nickname}] ${url} → пустой blob`);
-                        continue;
-                    }
-
-                    console.info(`[skin:${nickname}] ✅ ${url} (${blob.size} B, ${Math.round(performance.now() - t0)}мс)`);
-                    return blob;
-                } catch (e) {
-                    const isTimeout = e.name === 'AbortError';
-                    console.warn(`[skin:${nickname}] ${url} → ${isTimeout ? 'timeout 4с' : (e.message || e)}`);
-                }
-            }
-
-            return null;
-        }
-
-        function show2DFallback(fallbackId, blob) {
-            const wrap = document.getElementById(fallbackId);
-            if (!wrap) return false;
-            const img = wrap.querySelector('img');
-            if (!img) return false;
-
-            const url = URL.createObjectURL(blob);
-            img.src = url;
-            img.onload = () => {
-                wrap.style.display = 'flex';
-                setTimeout(() => URL.revokeObjectURL(url), 30000);
-            };
-            img.onerror = () => {
-                URL.revokeObjectURL(url);
-                wrap.style.display = 'none';
-            };
-            return true;
-        }
-
-        async function loadSkin(id, canvasId, errorId, fallbackId, nickname) {
-            const canvas = document.getElementById(canvasId);
-            const errorElement = document.getElementById(errorId);
-
-            if (!canvas) return;
-
-            const blob = await fetchSkinBlob(nickname);
-
-            if (!blob) {
-                if (errorElement) errorElement.style.display = 'block';
-                return;
-            }
-
-            // 3D через skinview3d
-            if (typeof skinview3d !== 'undefined') {
-                const blobUrl = URL.createObjectURL(blob);
-                try {
-                    viewers[id] = new skinview3d.SkinViewer({
-                        canvas: canvas,
-                        width: 220,
-                        height: 280,
-                        skin: blobUrl
-                    });
-                    configureViewer(viewers[id]);
-                    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-                    return;
-                } catch (e) {
-                    console.error(`[skin:${nickname}] 3D init error:`, e);
-                    URL.revokeObjectURL(blobUrl);
-                }
-            }
-
-            // 2D-фолбэк
-            if (!show2DFallback(fallbackId, blob) && errorElement) {
-                errorElement.style.display = 'block';
-            }
-        }
-
-        function configureViewer(viewer) {
-            if (!viewer) return;
-
-            viewer.autoRotate = true;
-            viewer.autoRotateSpeed = 0.7;
-            viewer.animation = new skinview3d.WalkingAnimation();
-            viewer.animation.speed = 0.6;
-            viewer.fov = 65;
-            viewer.zoom = 0.85;
-
-            const wrapper = viewer.canvas.closest('.skin-3d-wrapper');
-            if (wrapper) wrapper.classList.add('is-walking');
-        }
-
-        /* ---------- Загрузка README.md ---------- */
-
-        async function loadPlayers() {
-            const grid = document.getElementById('players-grid');
-            let players = [];
-
-            try {
-                const response = await fetch('./README.md', { cache: 'no-store' });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const text = await response.text();
-                players = parseReadme(text);
-                console.info(`[README] загружено игроков: ${players.length}`);
-            } catch (e) {
-                console.warn('Не удалось прочитать README.md, использую резервный список:', e);
-                players = FALLBACK_PLAYERS.slice();
-            }
-
-            if (!players.length) players = FALLBACK_PLAYERS.slice();
-
-            renderPlayers(players);
-            if (grid) grid.setAttribute('data-loaded', 'true');
-        }
-
-        /* ---------- Анимация появления при скролле ---------- */
-
-        let revealObserver = null;
-
-        function initializeScrollReveal() {
-            const revealItems = document.querySelectorAll(
-                'main .page-section, main .info-grid > .card, main .page-section > .card, main .players-grid > .player-card, footer'
-            );
-
-            revealItems.forEach((item, index) => {
-                if (!item.classList.contains('reveal-on-scroll')) {
-                    item.classList.add('reveal-on-scroll');
-                    item.style.transitionDelay = `${(index % 4) * 90}ms`;
-                }
-            });
-
-            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
-                revealItems.forEach((item) => item.classList.add('is-visible'));
-                return;
-            }
-
-            if (!revealObserver) {
-                revealObserver = new IntersectionObserver((entries, observer) => {
-                    entries.forEach((entry) => {
-                        if (!entry.isIntersecting) return;
-                        entry.target.classList.add('is-visible');
-                        observer.unobserve(entry.target);
-                    });
-                }, { threshold: 0.12, rootMargin: '0px 0px -40px' });
-            }
-
-            revealItems.forEach((item) => {
-                if (!item.classList.contains('is-visible')) revealObserver.observe(item);
-            });
-        }
-
-        /* ---------- Инициализация ---------- */
-
-        window.addEventListener('DOMContentLoaded', async () => {
-            const loadingScreen = document.getElementById('loading-screen');
-            const loadingMessage = document.getElementById('loading-message');
-
-            const playersPromise = loadPlayers().catch((err) => console.error(err));
-            const minDelay = new Promise((resolve) => setTimeout(resolve, 1500));
-
-            await Promise.all([playersPromise, minDelay]);
-
-            if (loadingMessage) loadingMessage.textContent = 'Готово!';
-            if (loadingScreen) loadingScreen.classList.add('is-hidden');
-
-            initializeScrollReveal();
+            players.push({ name, role });
         });
 
-        /* ---------- Публичные помощники (для отладки) ---------- */
+        return players;
+    }
 
-        function toggleRotate(key) {
-            if (viewers[key]) viewers[key].autoRotate = !viewers[key].autoRotate;
+    /* ---------- Рендер карточек ---------- */
+
+    function renderPlayers(players) {
+        const grid = document.getElementById('players-grid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        if (!players.length) {
+            const status = document.createElement('div');
+            status.className = 'players-status is-error';
+            status.textContent = 'README.md пуст — не найдено ни одного ника.';
+            grid.appendChild(status);
+            return;
         }
 
-        function toggleWalk(key) {
-            if (!viewers[key]) return;
-            const wrapper = viewers[key].canvas.closest('.skin-3d-wrapper');
+        players.forEach((player, index) => {
+            const meta = ROLE_META[player.role] || ROLE_META.member;
+            const slug = `${slugify(player.name)}_${index}`;
+            const canvasId = `skin-container-${slug}`;
+            const errorId = `error-${slug}`;
+            const fallbackId = `fallback-${slug}`;
 
-            if (viewers[key].animation) {
-                viewers[key].animation = null;
-                if (wrapper) wrapper.classList.remove('is-walking');
-            } else {
-                viewers[key].animation = new skinview3d.WalkingAnimation();
-                viewers[key].animation.speed = 0.6;
-                if (wrapper) wrapper.classList.add('is-walking');
+            const card = document.createElement('div');
+            card.className = `player-card ${meta.card}`.trim();
+            card.setAttribute('data-player', player.name);
+
+            card.innerHTML = `
+                <div class="skin-3d-wrapper">
+                    <canvas id="${canvasId}" class="skin-canvas"></canvas>
+                    <div id="${fallbackId}" class="skin-2d-fallback">
+                        <img alt="${escapeHtml(player.name)}" />
+                    </div>
+                    <div id="${errorId}" class="skin-error-msg">
+                        ⚠️ Скин <b>${escapeHtml(player.name)}</b> не найден на ely.by
+                    </div>
+                </div>
+                <div class="player-name">${escapeHtml(player.name)}</div>
+                <div class="role-badge ${meta.badge}">${meta.label}</div>
+            `;
+
+            grid.appendChild(card);
+
+            loadSkin(slug, canvasId, errorId, fallbackId, player.name);
+        });
+
+        initializeScrollReveal();
+    }
+
+    /* ---------- Загрузка скина с таймаутом ---------- */
+
+    async function fetchWithTimeout(url, ms = 4000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        try {
+            return await fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                redirect: 'follow',
+                cache: 'no-store',
+                signal: controller.signal
+            });
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    async function fetchSkinBlob(nickname) {
+        const sources = ELY_SKIN_SOURCES(nickname);
+
+        for (const url of sources) {
+            const t0 = performance.now();
+            try {
+                const res = await fetchWithTimeout(url, 4000);
+
+                if (!res.ok) {
+                    console.warn(`[skin:${nickname}] ${url} → HTTP ${res.status} (${Math.round(performance.now() - t0)}мс)`);
+                    continue;
+                }
+
+                const ct = (res.headers.get('content-type') || '').toLowerCase();
+
+                if (ct.includes('text/html')) {
+                    console.warn(`[skin:${nickname}] ${url} → HTML (скин не найден)`);
+                    continue;
+                }
+
+                const blob = await res.blob();
+                if (!blob || blob.size < 64) {
+                    console.warn(`[skin:${nickname}] ${url} → пустой blob`);
+                    continue;
+                }
+
+                console.info(`[skin:${nickname}] ✅ ${url} (${blob.size} B, ${Math.round(performance.now() - t0)}мс)`);
+                return blob;
+            } catch (e) {
+                const isTimeout = e.name === 'AbortError';
+                console.warn(`[skin:${nickname}] ${url} → ${isTimeout ? 'timeout 4с' : (e.message || e)}`);
             }
         }
-    </script>
+
+        return null;
+    }
+
+    function show2DFallback(fallbackId, blob) {
+        const wrap = document.getElementById(fallbackId);
+        if (!wrap) return false;
+        const img = wrap.querySelector('img');
+        if (!img) return false;
+
+        const url = URL.createObjectURL(blob);
+        img.src = url;
+        img.onload = () => {
+            wrap.style.display = 'flex';
+            setTimeout(() => URL.revokeObjectURL(url), 30000);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            wrap.style.display = 'none';
+        };
+        return true;
+    }
+
+    async function loadSkin(id, canvasId, errorId, fallbackId, nickname) {
+        const canvas = document.getElementById(canvasId);
+        const errorElement = document.getElementById(errorId);
+
+        if (!canvas) return;
+
+        const blob = await fetchSkinBlob(nickname);
+
+        if (!blob) {
+            if (errorElement) errorElement.style.display = 'block';
+            return;
+        }
+
+        // 3D через skinview3d
+        if (typeof skinview3d !== 'undefined') {
+            const blobUrl = URL.createObjectURL(blob);
+            try {
+                viewers[id] = new skinview3d.SkinViewer({
+                    canvas: canvas,
+                    width: 220,
+                    height: 280,
+                    skin: blobUrl
+                });
+                configureViewer(viewers[id]);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+                return;
+            } catch (e) {
+                console.error(`[skin:${nickname}] 3D init error:`, e);
+                URL.revokeObjectURL(blobUrl);
+            }
+        }
+
+        // 2D-фолбэк
+        if (!show2DFallback(fallbackId, blob) && errorElement) {
+            errorElement.style.display = 'block';
+        }
+    }
+
+    function configureViewer(viewer) {
+        if (!viewer) return;
+
+        viewer.autoRotate = true;
+        viewer.autoRotateSpeed = 0.7;
+        viewer.animation = new skinview3d.WalkingAnimation();
+        viewer.animation.speed = 0.6;
+        viewer.fov = 65;
+        viewer.zoom = 0.85;
+
+        const wrapper = viewer.canvas.closest('.skin-3d-wrapper');
+        if (wrapper) wrapper.classList.add('is-walking');
+    }
+
+    /* ---------- Загрузка README.md ---------- */
+
+    async function loadPlayers() {
+        const grid = document.getElementById('players-grid');
+        let players = [];
+
+        try {
+            const response = await fetch('./README.md', { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const text = await response.text();
+            players = parseReadme(text);
+            console.info(`[README] загружено игроков: ${players.length}`);
+        } catch (e) {
+            console.warn('Не удалось прочитать README.md, использую резервный список:', e);
+            players = FALLBACK_PLAYERS.slice();
+        }
+
+        if (!players.length) players = FALLBACK_PLAYERS.slice();
+
+        renderPlayers(players);
+        if (grid) grid.setAttribute('data-loaded', 'true');
+    }
+
+    /* ---------- Анимация появления при скролле ---------- */
+
+    let revealObserver = null;
+
+    function initializeScrollReveal() {
+        const revealItems = document.querySelectorAll(
+            'main .page-section, main .info-grid > .card, main .page-section > .card, main .players-grid > .player-card, footer'
+        );
+
+        revealItems.forEach((item, index) => {
+            if (!item.classList.contains('reveal-on-scroll')) {
+                item.classList.add('reveal-on-scroll');
+                item.style.transitionDelay = `${(index % 4) * 90}ms`;
+            }
+        });
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+            revealItems.forEach((item) => item.classList.add('is-visible'));
+            return;
+        }
+
+        if (!revealObserver) {
+            revealObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                });
+            }, { threshold: 0.12, rootMargin: '0px 0px -40px' });
+        }
+
+        revealItems.forEach((item) => {
+            if (!item.classList.contains('is-visible')) revealObserver.observe(item);
+        });
+    }
+
+    /* ---------- Инициализация ---------- */
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        const loadingScreen = document.getElementById('loading-screen');
+        const loadingMessage = document.getElementById('loading-message');
+
+        const playersPromise = loadPlayers().catch((err) => console.error(err));
+        const minDelay = new Promise((resolve) => setTimeout(resolve, 1500));
+
+        await Promise.all([playersPromise, minDelay]);
+
+        if (loadingMessage) loadingMessage.textContent = 'Готово!';
+        if (loadingScreen) loadingScreen.classList.add('is-hidden');
+
+        initializeScrollReveal();
+    });
+
+    /* ---------- Публичные помощники (для отладки) ---------- */
+
+    function toggleRotate(key) {
+        if (viewers[key]) viewers[key].autoRotate = !viewers[key].autoRotate;
+    }
+
+    function toggleWalk(key) {
+        if (!viewers[key]) return;
+        const wrapper = viewers[key].canvas.closest('.skin-3d-wrapper');
+
+        if (viewers[key].animation) {
+            viewers[key].animation = null;
+            if (wrapper) wrapper.classList.remove('is-walking');
+        } else {
+            viewers[key].animation = new skinview3d.WalkingAnimation();
+            viewers[key].animation.speed = 0.6;
+            if (wrapper) wrapper.classList.add('is-walking');
+        }
+    }
+</script>
 </body>
 </html>
