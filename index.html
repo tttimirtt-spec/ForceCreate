@@ -688,11 +688,15 @@
 
     <script>
     /* ============================================================
-       ForceCreate v3.3 — 3D-скины с ely.by (РАБОЧАЯ ВЕРСИЯ)
+       ForceCreate v3.3 — 3D-СКИНЫ С ELY.BY (ГАРАНТИРОВАННОЕ РЕШЕНИЕ)
        ------------------------------------------------------------
-       Скин тянется через images.weserv.nl — он же и делает CORS,
-       и следует за редиректом ely.by → storage.ely.by.
-       Библиотека skinview3d подтягивается с CDN, если её нет локально.
+       Ely.by не отдаёт CORS → canvas «пачкается» → WebGL не работает.
+       Решение: images.weserv.nl — CDN-прокси, который:
+         1) сам идёт по редиректу ely.by → storage.ely.by
+         2) добавляет Access-Control-Allow-Origin: *
+         3) по &output=png возвращает именно PNG
+       В итоге <img crossOrigin="anonymous"> грузится «чистой»,
+       и skinview3d строит 3D-модель.
        ============================================================ */
 
     const viewers = {};
@@ -710,7 +714,7 @@
         { name: 'Lesovik',   role: 'member'  }
     ];
 
-    /* ---------- Загрузка skinview3d ---------- */
+    /* ---------- 1. ЗАГРУЗКА skinview3d С CDN ---------- */
     function loadScript(src) {
         return new Promise((resolve, reject) => {
             const s = document.createElement('script');
@@ -751,7 +755,7 @@
         return false;
     }
 
-    /* ---------- Утилиты ---------- */
+    /* ---------- 2. УТИЛИТЫ ---------- */
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
@@ -759,7 +763,7 @@
         return String(n).toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'player';
     }
 
-    /* ---------- README ---------- */
+    /* ---------- 3. ПАРСИНГ README.md ---------- */
     function parseReadme(text) {
         const out = []; const seen = new Set();
         text.split(/\r?\n/).forEach(raw => {
@@ -780,7 +784,7 @@
         return out;
     }
 
-    /* ---------- Рендер ---------- */
+    /* ---------- 4. РЕНДЕР КАРТОЧЕК ---------- */
     function renderPlayers(players) {
         const grid = document.getElementById('players-grid');
         if (!grid) return;
@@ -820,7 +824,7 @@
         initializeScrollReveal();
     }
 
-    /* ---------- Загрузка картинки ---------- */
+    /* ---------- 5. ЗАГРУЗКА КАРТИНКИ С CORS ---------- */
     function loadImg(src, crossOrigin, timeoutMs = 10000) {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -835,16 +839,16 @@
         });
     }
 
-    /* ---------- URL скина через images.weserv.nl ---------- */
+    /* ---------- 6. URL СКИНА ЧЕРЕЗ images.weserv.nl ---------- */
     function buildSkinUrl(nick) {
-        // ВАЖНО: encodeURIComponent обязательно, иначе weserv не поймёт url
+        // Кодируем URL обязательно, иначе weserv не поймёт параметр
         const path = `ely.by/skins/${encodeURIComponent(nick)}.png`;
         const e = encodeURIComponent(path);
         // &output=png — чтобы вернулся именно PNG, а не WebP
         return `https://images.weserv.nl/?url=${e}&output=png&n=-1`;
     }
 
-    /* ---------- 2D-фолбэк ---------- */
+    /* ---------- 7. 2D-ФОЛБЭК ---------- */
     function show2D(fallbackId, src) {
         const wrap = document.getElementById(fallbackId);
         if (!wrap) return;
@@ -856,23 +860,31 @@
         if (wrap) wrap.style.display = 'none';
     }
 
-    /* ---------- Монтаж 3D ---------- */
+    /* ---------- 8. МОНТАЖ 3D ---------- */
     function mount3D(id, canvas, image, nick) {
         if (typeof skinview3d === 'undefined' || typeof skinview3d.SkinViewer !== 'function') {
             console.error(`[3D:${nick}] skinview3d недоступна`);
             return false;
         }
         try {
+            // Чистим предыдущий viewer, если был
             if (viewers[id] && typeof viewers[id].dispose === 'function') {
                 try { viewers[id].dispose(); } catch (e) {}
             }
+
             const viewer = new skinview3d.SkinViewer({
-                canvas: canvas, width: 220, height: 280, skin: image
+                canvas: canvas,
+                width: 220,
+                height: 280,
+                skin: image // Передаём готовый <img> с crossOrigin
             });
+
             viewer.autoRotate = true;
             viewer.autoRotateSpeed = 0.7;
             viewer.fov = 65;
             viewer.zoom = 0.85;
+
+            // WalkingAnimation — только если доступна
             if (typeof skinview3d.WalkingAnimation === 'function') {
                 try {
                     viewer.animation = new skinview3d.WalkingAnimation();
@@ -881,6 +893,7 @@
                     if (wrapper) wrapper.classList.add('is-walking');
                 } catch (e) {}
             }
+
             viewers[id] = viewer;
             console.info(`[3D:${nick}] SkinViewer создан ✅`);
             return true;
@@ -890,7 +903,7 @@
         }
     }
 
-    /* ---------- Загрузка одного скина ---------- */
+    /* ---------- 9. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ СКИНА ---------- */
     async function loadSkin(id, canvasId, errorId, fallbackId, nick) {
         const canvas = document.getElementById(canvasId);
         const errEl = document.getElementById(errorId);
@@ -925,7 +938,7 @@
         }
     }
 
-    /* ---------- README ---------- */
+    /* ---------- 10. ЗАГРУЗКА README.md ---------- */
     async function loadPlayers() {
         try {
             const r = await fetch('./README.md', { cache: 'no-store' });
@@ -939,7 +952,7 @@
         }
     }
 
-    /* ---------- Scroll reveal ---------- */
+    /* ---------- 11. АНИМАЦИЯ ПРИ СКРОЛЛЕ ---------- */
     let revealObserver = null;
     function initializeScrollReveal() {
         const items = document.querySelectorAll(
@@ -967,7 +980,7 @@
         items.forEach(el => { if (!el.classList.contains('is-visible')) revealObserver.observe(el); });
     }
 
-    /* ---------- Старт ---------- */
+    /* ---------- 12. СТАРТ ---------- */
     window.addEventListener('DOMContentLoaded', async () => {
         const scr = document.getElementById('loading-screen');
         const msg = document.getElementById('loading-message');
