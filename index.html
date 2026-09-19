@@ -732,7 +732,7 @@
                 <div class="version-tag"><span>⚡</span> ОБНОВЛЕНИЕ 3.3 HYPERFORGE</div>
                 <h1 class="hero-title">Новая Эпоха Машин, Энергии & Свободы</h1>
                 <p class="hero-desc">
-                    ForceCreate 3.3 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ. Состав игроков теперь формируется автоматически из README.md.
+                    ForceCreate 3.3 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ. Состав игроков теперь формируется автоматически из README.md, а скины подтягиваются с ely.by.
                 </p>
 
                 <a class="telegram-btn" href="https://t.me/Timur_Lag" target="_blank" rel="noopener noreferrer">Подать заявку в ТГ</a>
@@ -807,20 +807,24 @@
            ForceCreate v3.3 — автозагрузка игроков из README.md
            ------------------------------------------------------------
            Формат README.md (по одному нику на строку):
-               Timur_Lag
+               Timur_Lag|admin
                Emran_Lag|brother
                DoveSak
                Lesovik
-               # строки-комментарии игнорируются
+               # комментарии игнорируются
 
            Роли: member (по умолчанию), admin, brother
-           Скины берутся с https://ely.by/skins/<ник>.png
+           Скины берутся с ely.by через fetch + Blob (обходим 302-редирект)
            ============================================================ */
 
         const viewers = {};
 
-        const ELY_SKIN_URL = (nick) =>
-            `https://ely.by/skins/${encodeURIComponent(nick)}.png`;
+        // ely.by отдаёт PNG через 302-редирект, поэтому грузим через fetch
+        // и превращаем в blob: URL — так канвас не пачкается и WebGL работает.
+        const ELY_SKIN_ENDPOINTS = (nick) => [
+            `https://skinsystem.ely.by/skins/${encodeURIComponent(nick)}.png`,
+            `https://ely.by/skins/${encodeURIComponent(nick)}.png`
+        ];
 
         const ROLE_META = {
             admin:   { label: 'Администратор', badge: 'role-admin',   card: 'role-admin-card'   },
@@ -929,37 +933,71 @@
             initializeScrollReveal();
         }
 
-        /* ---------- Загрузка скина с ely.by ---------- */
+        /* ---------- Загрузка скина с ely.by через fetch + Blob ---------- */
 
-        function loadSkinFromEly(id, canvasId, errorId, nickname) {
+        async function fetchSkinBlob(nickname) {
+            const endpoints = ELY_SKIN_ENDPOINTS(nickname);
+
+            for (const url of endpoints) {
+                try {
+                    const res = await fetch(url, {
+                        method: 'GET',
+                        mode: 'cors',
+                        redirect: 'follow',
+                        cache: 'no-store'
+                    });
+
+                    if (!res.ok) continue;
+
+                    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+                    // ely.by отдаёт HTML-страницу, если скина нет — отсекаем.
+                    if (!contentType.startsWith('image/')) continue;
+
+                    const blob = await res.blob();
+                    if (!blob || blob.size === 0) continue;
+                    if (!blob.type.startsWith('image/')) continue;
+
+                    return blob;
+                } catch (e) {
+                    // пробуем следующий endpoint
+                }
+            }
+
+            return null;
+        }
+
+        async function loadSkinFromEly(id, canvasId, errorId, nickname) {
             const canvas = document.getElementById(canvasId);
             const errorElement = document.getElementById(errorId);
 
             if (!canvas || typeof skinview3d === 'undefined') return;
 
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
+            const blob = await fetchSkinBlob(nickname);
 
-            img.onload = () => {
-                try {
-                    viewers[id] = new skinview3d.SkinViewer({
-                        canvas: canvas,
-                        width: 220,
-                        height: 280,
-                        skin: img
-                    });
-                    configureViewer(viewers[id]);
-                } catch (e) {
-                    console.error('Ошибка инициализации 3D-модели:', e);
-                    if (errorElement) errorElement.style.display = 'block';
-                }
-            };
-
-            img.onerror = () => {
+            if (!blob) {
                 if (errorElement) errorElement.style.display = 'block';
-            };
+                return;
+            }
 
-            img.src = ELY_SKIN_URL(nickname);
+            // blob: — того же origin, канвас не пачкается, WebGL-текстура грузится нормально
+            const blobUrl = URL.createObjectURL(blob);
+
+            try {
+                viewers[id] = new skinview3d.SkinViewer({
+                    canvas: canvas,
+                    width: 220,
+                    height: 280,
+                    skin: blobUrl
+                });
+                configureViewer(viewers[id]);
+            } catch (e) {
+                console.error('Ошибка инициализации 3D-модели:', e);
+                if (errorElement) errorElement.style.display = 'block';
+            } finally {
+                // skinview3d уже загрузил текстуру — можно освободить
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+            }
         }
 
         function configureViewer(viewer) {
