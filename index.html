@@ -690,16 +690,9 @@
     /* ============================================================
        ForceCreate v3.3 — 3D-скины с ely.by
        ------------------------------------------------------------
-       ely.by отдаёт скин через 302 → storage.ely.by и БЕЗ CORS.
-       Прямой <img crossOrigin> не проходит → canvas tainted → нет 3D.
-
-       Решение: получаем картинку через images.weserv.nl / wsrv.nl.
-       Этот CDN:
-         - сам идёт по редиректу ely.by → storage.ely.by
-         - отдаёт Access-Control-Allow-Origin: *
-         - по &output=png возвращает именно PNG (иначе может быть WebP)
-       В итоге <img crossOrigin="anonymous"> грузится «чистой»,
-       canvas не портится, skinview3d строит 3D-модель.
+       Ключевая проверка: skinview3d должен быть загружен.
+       Если локальный ./scripts/skinview3d.bundle.js отсутствует,
+       подтягиваем библиотеку с CDN. Без неё 3D невозможно.
        ============================================================ */
 
     const viewers = {};
@@ -726,6 +719,57 @@
         return String(n).toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'player';
     }
 
+    /* ---------- ГАРАНТИРОВАННАЯ загрузка skinview3d ---------- */
+
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.async = false;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('failed ' + src));
+            document.head.appendChild(s);
+        });
+    }
+
+    async function ensureSkinview3d() {
+        // 1) уже загружена локальная копия?
+        if (typeof skinview3d !== 'undefined' && typeof skinview3d.SkinViewer === 'function') {
+            console.info('[3D] skinview3d найдена локально ✅');
+            return true;
+        }
+        // 2) ждём немного — вдруг скрипт ещё грузится
+        for (let i = 0; i < 10; i++) {
+            await new Promise((r) => setTimeout(r, 100));
+            if (typeof skinview3d !== 'undefined' && typeof skinview3d.SkinViewer === 'function') {
+                console.info('[3D] skinview3d появилась с задержкой ✅');
+                return true;
+            }
+        }
+        // 3) подтягиваем с CDN
+        const cdns = [
+            'https://cdn.jsdelivr.net/npm/skinview3d@3.0.0/bundles/skinview3d.bundle.js',
+            'https://unpkg.com/skinview3d@3.0.0/bundles/skinview3d.bundle.js',
+            'https://cdn.jsdelivr.net/npm/skinview3d/bundles/skinview3d.bundle.js'
+        ];
+        for (const url of cdns) {
+            try {
+                console.warn('[3D] Локальный skinview3d не найден. Гружу с CDN:', url);
+                await loadScript(url);
+                if (typeof skinview3d !== 'undefined' && typeof skinview3d.SkinViewer === 'function') {
+                    console.info('[3D] skinview3d загружена с CDN ✅');
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[3D] CDN не сработал:', url, e.message);
+            }
+        }
+        console.error('[3D] НЕ УДАЛОСЬ загрузить skinview3d. 3D работать не будет.');
+        return false;
+    }
+
+    /* ---------- Парсинг README.md ---------- */
+
     function parseReadme(text) {
         const out = []; const seen = new Set();
         text.split(/\r?\n/).forEach((raw) => {
@@ -746,7 +790,7 @@
         return out;
     }
 
-    /* ---------- Рендер ---------- */
+    /* ---------- Рендер карточек ---------- */
 
     function renderPlayers(players) {
         const grid = document.getElementById('players-grid');
@@ -773,7 +817,7 @@
             card.setAttribute('data-player', pl.name);
             card.innerHTML = `
                 <div class="skin-3d-wrapper">
-                    <canvas id="${canvasId}" class="skin-canvas"></canvas>
+                    <canvas id="${canvasId}" class="skin-canvas" width="220" height="280"></canvas>
                     <div id="${fallbackId}" class="skin-2d-fallback">
                         <img alt="${escapeHtml(pl.name)}" />
                     </div>
@@ -791,9 +835,9 @@
         initializeScrollReveal();
     }
 
-    /* ---------- Загрузка картинки через <img> ---------- */
+    /* ---------- Загрузка картинки ---------- */
 
-    function loadImg(src, crossOrigin, timeoutMs = 6000) {
+    function loadImg(src, crossOrigin, timeoutMs = 8000) {
         return new Promise((resolve, reject) => {
             const img = new Image();
             if (crossOrigin) img.crossOrigin = 'anonymous';
@@ -807,28 +851,22 @@
         });
     }
 
-    /* ---------- Список URL: только ely.by, но через CORS-пути ---------- */
+    /* ---------- Источники скинов (только ely.by) ---------- */
 
     function buildSources(nick) {
         const n = encodeURIComponent(nick);
-        const elyPath = `ely.by/skins/${n}.png`;         // без схемы (weserv так принимает)
+        const elyPath = `ely.by/skins/${n}.png`;
         const elyFull = `https://ely.by/skins/${n}.png`;
         const e = encodeURIComponent(elyPath);
 
         return {
-            // crossOrigin <img> — даёт чистый canvas и 3D.
-            // Первый же работающий источник используется.
             cors: [
-                // Прямой запрос (сработает, если ely.by когда-то отдаст CORS)
                 `https://skinsystem.ely.by/skins/${n}.png`,
                 `https://ely.by/skins/${n}.png`,
-                // images.weserv.nl — CDN-прокси картинок с CORS и поддержкой редиректов
-                `https://images.weserv.nl/?url=${e}&output=png`,
-                `https://wsrv.nl/?url=${e}&output=png`,
-                // corsproxy.io — тоже редиректит и отдаёт CORS
+                `https://images.weserv.nl/?url=${e}&output=png&n=-1`,
+                `https://wsrv.nl/?url=${e}&output=png&n=-1`,
                 `https://corsproxy.io/?url=${encodeURIComponent(elyFull)}`
             ],
-            // Обычный <img> без crossOrigin — гарантированный 2D-фолбэк
             plain: [
                 `https://skinsystem.ely.by/skins/${n}.png`,
                 `https://ely.by/skins/${n}.png`
@@ -845,52 +883,73 @@
         if (!img) return;
         img.src = src;
         wrap.style.display = 'flex';
+        console.warn('[3D] Показан 2D-фолбэк для:', src);
     }
 
-    /* ---------- Монтаж 3D ---------- */
+    function hide2D(fallbackId) {
+        const wrap = document.getElementById(fallbackId);
+        if (wrap) wrap.style.display = 'none';
+    }
 
-    function mount3D(id, canvas, source) {
-        if (typeof skinview3d === 'undefined') return false;
+    /* ---------- Монтаж 3D с диагностикой ---------- */
+
+    function mount3D(id, canvas, image, nick) {
+        if (typeof skinview3d === 'undefined') {
+            console.error(`[3D:${nick}] skinview3d не загружена — 3D невозможно`);
+            return false;
+        }
+        if (typeof skinview3d.SkinViewer !== 'function') {
+            console.error(`[3D:${nick}] skinview3d.SkinViewer не функция. Экспорты:`, Object.keys(skinview3d));
+            return false;
+        }
+
         try {
-            // Если на canvas уже был viewer — dispose'им, чтобы не было утечек
+            // чистим предыдущий viewer, если был
             if (viewers[id] && typeof viewers[id].dispose === 'function') {
                 try { viewers[id].dispose(); } catch (e) {}
             }
+
+            console.info(`[3D:${nick}] создаю SkinViewer... image=${image.width}x${image.height}`);
 
             const viewer = new skinview3d.SkinViewer({
                 canvas: canvas,
                 width: 220,
                 height: 280,
-                skin: source
+                skin: image
             });
+
+            console.info(`[3D:${nick}] SkinViewer создан ✅`);
 
             viewer.autoRotate = true;
             viewer.autoRotateSpeed = 0.7;
             viewer.fov = 65;
             viewer.zoom = 0.85;
 
-            // Анимация ходьбы — включаем, если доступна в этой сборке
-            try {
-                if (skinview3d.WalkingAnimation) {
+            // WalkingAnimation — только если доступна
+            if (typeof skinview3d.WalkingAnimation === 'function') {
+                try {
                     viewer.animation = new skinview3d.WalkingAnimation();
                     viewer.animation.speed = 0.6;
+                    const wrapper = canvas.closest('.skin-3d-wrapper');
+                    if (wrapper) wrapper.classList.add('is-walking');
+                    console.info(`[3D:${nick}] анимация ходьбы включена`);
+                } catch (e) {
+                    console.warn(`[3D:${nick}] WalkingAnimation не удалось включить:`, e);
                 }
-            } catch (e) {
-                console.warn('WalkingAnimation недоступна:', e);
+            } else {
+                console.warn(`[3D:${nick}] WalkingAnimation недоступна в этой сборке`);
             }
 
-            const wrapper = canvas.closest('.skin-3d-wrapper');
-            if (wrapper) wrapper.classList.add('is-walking');
-
             viewers[id] = viewer;
+            console.info(`[3D:${nick}] ГОТОВО ✅`);
             return true;
         } catch (e) {
-            console.error('3D init error:', e);
+            console.error(`[3D:${nick}] ошибка создания SkinViewer:`, e);
             return false;
         }
     }
 
-    /* ---------- Главная функция загрузки одного скина ---------- */
+    /* ---------- Главная функция одного скина ---------- */
 
     async function loadSkin(id, canvasId, errorId, fallbackId, nick) {
         const canvas = document.getElementById(canvasId);
@@ -903,14 +962,15 @@
         for (const url of cors) {
             const t0 = performance.now();
             try {
-                const img = await loadImg(url, true, 6000);
+                const img = await loadImg(url, true, 8000);
                 const dt = Math.round(performance.now() - t0);
-                console.info(`[skin:${nick}] ✅ CORS <img> ← ${url} (${dt}мс)`);
+                console.info(`[skin:${nick}] ✅ CORS <img> ← ${url} (${dt}мс, ${img.width}x${img.height})`);
 
-                if (mount3D(id, canvas, img)) {
-                    return; // 3D построено
+                if (mount3D(id, canvas, img, nick)) {
+                    hide2D(fallbackId);
+                    return;
                 }
-                // если 3D не получилось — покажем эту же картинку в 2D
+                // CORS-картинка есть, но 3D не собрался — покажем её в 2D
                 show2D(fallbackId, url);
                 return;
             } catch (e) {
@@ -918,10 +978,10 @@
             }
         }
 
-        // 2) 2D-фолбэк через обычный <img> (canvas портится, но скин виден)
+        // 2) 2D-фолбэк
         for (const url of plain) {
             try {
-                await loadImg(url, false, 6000);
+                await loadImg(url, false, 8000);
                 console.info(`[skin:${nick}] ⚠️ 2D-only ← ${url}`);
                 show2D(fallbackId, url);
                 return;
@@ -987,9 +1047,16 @@
     window.addEventListener('DOMContentLoaded', async () => {
         const scr = document.getElementById('loading-screen');
         const msg = document.getElementById('loading-message');
+
+        // 1) обязательно дожидаемся skinview3d
+        const has3d = await ensureSkinview3d();
+        if (!has3d && msg) msg.textContent = 'Библиотека 3D не загрузилась — скины будут 2D';
+
+        // 2) читаем README и строим карточки
         const p = loadPlayers().catch((e) => console.error(e));
         const d = new Promise((res) => setTimeout(res, 1200));
         await Promise.all([p, d]);
+
         if (msg) msg.textContent = 'Готово!';
         if (scr) scr.classList.add('is-hidden');
         initializeScrollReveal();
