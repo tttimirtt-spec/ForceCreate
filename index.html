@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ForceCreate v3.2 — HyperForge Edition</title>
+    <title>ForceCreate v3.3 — HyperForge Edition</title>
     <!-- Локальная копия библиотеки skinview3d -->
     <script src="./scripts/skinview3d.bundle.js"></script>
     <style>
@@ -111,94 +111,6 @@
             border-radius: 6px;
             letter-spacing: 1.5px;
             box-shadow: 0 0 12px var(--pink-glow);
-        }
-
-        /* БУРГЕР МЕНИЮ (КОНТЕЙНЕР) */
-        .burger-container {
-            position: relative;
-        }
-
-        .burger-btn {
-            background: rgba(10, 14, 26, 0.8);
-            border: 1px solid var(--border-color);
-            color: var(--primary);
-            width: 44px;
-            height: 44px;
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
-        }
-
-        .burger-btn:hover, .burger-btn.active {
-            border-color: var(--primary);
-            box-shadow: 0 0 20px var(--holo-glow);
-            background: rgba(0, 240, 255, 0.15);
-        }
-
-        .burger-line {
-            width: 22px;
-            height: 2px;
-            background-color: var(--primary);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-
-        /* Выпадающее меню */
-        .burger-dropdown {
-            position: absolute;
-            top: 55px;
-            right: 0;
-            width: 200px;
-            background: rgba(10, 14, 26, 0.95);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--primary);
-            border-radius: 14px;
-            padding: 10px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.2);
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 200;
-        }
-
-        .burger-dropdown.open {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        .menu-item {
-            background: transparent;
-            border: none;
-            color: var(--text-dim);
-            padding: 10px 14px;
-            border-radius: 8px;
-            text-align: left;
-            font-weight: 700;
-            font-size: 0.9rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.2s ease;
-        }
-
-        .menu-item:hover, .menu-item.active {
-            color: #fff;
-            background: linear-gradient(90deg, rgba(0, 240, 255, 0.2), transparent);
-            border-left: 3px solid var(--primary);
-            padding-left: 16px;
         }
 
         main {
@@ -397,11 +309,21 @@
             gap: 30px;
             justify-content: center;
             align-items: start;
+            min-height: 120px;
         }
 
-        .player-card {
-            min-height: 440px;
+        .players-status {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 1rem;
+            padding: 2rem 1rem;
+            border: 1px dashed var(--border-color);
+            border-radius: 16px;
+            background: rgba(12, 18, 32, 0.5);
         }
+
+        .players-status.is-error { color: var(--secondary); }
 
         @media (max-width: 1100px) {
             .players-grid {
@@ -417,6 +339,7 @@
 
         .player-card {
             --rank-color: var(--primary);
+            min-height: 380px;
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 20px;
@@ -478,7 +401,7 @@
             justify-content: center;
         }
 
-        /* Голографический цоколь -23px */
+        /* Голографический цоколь */
         .skin-3d-wrapper::after {
             content: '';
             position: absolute;
@@ -530,36 +453,13 @@
             text-shadow: 0 0 5px rgba(0,0,0,0.8);
         }
 
-        .controls-bar {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 1rem;
-            z-index: 5;
-        }
-
-        .ctrl-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-color);
-            color: var(--text-dim);
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .ctrl-btn:hover {
-            background: rgba(0, 240, 255, 0.2);
-            color: #fff;
-            border-color: var(--primary);
-        }
-
         .player-name {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 800;
             color: #fff;
             margin-bottom: 0.4rem;
             letter-spacing: 0.5px;
+            word-break: break-word;
         }
 
         .player-name-wrap {
@@ -593,7 +493,7 @@
             justify-content: center;
             flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
         }
 
         .rank-badge-item {
@@ -811,7 +711,7 @@
             <div class="loading-spinner" aria-hidden="true"></div>
             <div class="loading-logo">Force<span style="color: var(--primary);">Create</span></div>
             <h1 class="loading-title">Загрузка сайта</h1>
-            <p class="loading-message" id="loading-message">Пожалуйста, подождите...</p>
+            <p class="loading-message" id="loading-message">Читаем README.md и подгружаем скины...</p>
         </div>
     </div>
 
@@ -829,10 +729,10 @@
         <!-- 1. ГЛАВНАЯ СТРАНИЦА -->
         <section id="main-page" class="page-section active">
             <div class="hero">
-                <div class="version-tag"><span>⚡</span> ОБНОВЛЕНИЕ 3.2 HYPERFORGE</div>
+                <div class="version-tag"><span>⚡</span> ОБНОВЛЕНИЕ 3.3 HYPERFORGE</div>
                 <h1 class="hero-title">Новая Эпоха Машин, Энергии & Свободы</h1>
                 <p class="hero-desc">
-                    ForceCreate 3.2 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ.
+                    ForceCreate 3.3 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ. Состав игроков теперь формируется автоматически из README.md.
                 </p>
 
                 <a class="telegram-btn" href="https://t.me/Timur_Lag" target="_blank" rel="noopener noreferrer">Подать заявку в ТГ</a>
@@ -847,7 +747,7 @@
                     <div class="card-title"><span>⚙️</span> Платформа</div>
                     <ul class="mods-list">
                         <li><span>Версия игры</span> <strong>Minecraft 1.21.1</strong></li>
-                        <li><span>Ядро</span> <strong>NeoForge 3.2</strong></li>
+                        <li><span>Ядро</span> <strong>NeoForge 3.3</strong></li>
                         <li><span>Тип доступа</span> <strong style="color: var(--secondary);">Whitelist</strong></li>
                         <li><span>Серверное время</span> <strong>24/7 Uptime</strong></li>
                     </ul>
@@ -871,10 +771,10 @@
             <div class="card" style="max-width: 800px; margin: 0 auto; line-height: 1.8;">
                 <div class="card-title"><span>🚀</span> О сервере ForceCreate</div>
                 <p style="color: var(--text-dim); margin-bottom: 1rem;">
-                    <strong>ForceCreate 3.2</strong> — это закрытое инженерное сообщество нового уровня. Здесь акцент смещён на масштабные промышленные проекты, энергоинфраструктуру, логистику и командную работу над по-настоящему большими сооружениями.
+                    <strong>ForceCreate 3.3</strong> — это закрытое инженерное сообщество нового уровня. Здесь акцент смещён на масштабные промышленные проекты, энергоинфраструктуру, логистику и командную работу над по-настоящему большими сооружениями.
                 </p>
                 <p style="color: var(--text-dim); margin-bottom: 1rem;">
-                    В обновлении 3.2 добавлена ещё более глубокая атмосфера совместной игры: от автоматизированных линий до сложных сетей транспорта, воздушного сообщения и креативных инженерных решений. Безопасность и доверие строятся вокруг whitelist, логов и общих правил сообщества.
+                    В обновлении 3.3 состав игроков автоматически формируется из файла <strong>README.md</strong>, а скины подтягиваются через сервис <strong>ely.by</strong> — просто добавьте новый ник новой строкой, и карточка игрока появится сама.
                 </p>
                 <p style="color: var(--text-dim);">
                     Создавайте синхронизированные механизмы, строите высокоточные заводы и развивайте единую сеть производства вместе с ForceCreate.
@@ -885,100 +785,9 @@
         <!-- 4. СТРАНИЦА ИГРОКОВ -->
         <section id="players-page" class="page-section">
             <h2 class="section-title">Состав Сервера</h2>
-            
-            <div class="players-grid">
-                <!-- КАРТОЧКА: Timur_Lag (Администратор — Красный/Розовый цоколь) -->
-<div class="player-card role-admin-card" data-player="Timur_Lag">
-                    <div class="skin-3d-wrapper">
-                        <canvas id="skin-container-timur" class="skin-canvas"></canvas>
-                        <div id="error-timur" class="skin-error-msg">⚠️ Файл Timur_Lag.png не найден</div>
-                    </div>
 
-                    <div class="player-name">Timur_Lag</div>
-                    <div class="role-badge role-admin">Администратор</div>                    <div class="rank-group" aria-label="Ранги">
-                        <div class="rank-badge-item" tabindex="0" title="Строитель">
-                            <img src="./assets/builder.png" alt="Строитель">
-                            <span class="rank-tooltip">Строитель</span>
-                        </div>
-                        <div class="rank-badge-item" tabindex="0" title="Инженер">
-                            <img src="./assets/engineer.png" alt="Инженер">
-                            <span class="rank-tooltip">Инженер</span>
-                        </div>
-                        <div class="rank-badge-item" tabindex="0" title="Мудрый">
-                            <img src="./assets/wise.png" alt="Мудрый">
-                            <span class="rank-tooltip">Мудрый</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- КАРТОЧКА: Emran_Lag (Брат — Желтый цоколь) -->
-                <div class="player-card role-brother-card" data-player="Emran_Lag">
-                    <div class="skin-3d-wrapper">
-                        <canvas id="skin-container-emran" class="skin-canvas"></canvas>
-                        <div id="error-emran" class="skin-error-msg">⚠️ Файл emran_lag.png не найден</div>
-                    </div>
-
-                    <div class="player-name">Emran_Lag</div>
-                    <div class="role-badge role-brother">Брат</div>
-                    <div class="rank-group" aria-label="Ранги">
-                        <div class="rank-badge-item" tabindex="0" title="ПВП">
-                            <img src="./assets/pvp.png" alt="ПВП">
-                            <span class="rank-tooltip">ПВП</span>
-                        </div>
-                        <div class="rank-badge-item" tabindex="0" title="Умный">
-                            <img src="./assets/wise.png" alt="Умный">
-                            <span class="rank-tooltip">Умный</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- КАРТОЧКА: DoveSak (Участник — Голубой цоколь) -->
-                <div class="player-card" data-player="DoveSak">
-                    <div class="skin-3d-wrapper">
-                        <canvas id="skin-container-dovesak" class="skin-canvas"></canvas>
-                        <div id="error-dovesak" class="skin-error-msg">⚠️ Файл dovesak.png не найден</div>
-                    </div>
-
-                    <div class="player-name">DoveSak</div>
-                    <div class="role-badge role-member">Участник</div>                    <div class="rank-group" aria-label="Ранги">
-                        <div class="rank-badge-item" tabindex="0" title="ПВП">
-                            <img src="./assets/pvp.png" alt="ПВП">
-                            <span class="rank-tooltip">ПВП</span>
-                        </div>
-                        <div class="rank-badge-item" tabindex="0" title="ПВЕ">
-                            <img src="./assets/pve.png" alt="ПВЕ">
-                            <span class="rank-tooltip">ПВЕ</span>
-                        </div>
-                        <div class="rank-badge-item" tabindex="0" title="Чародей">
-                            <img src="./assets/enchanter.png" alt="Чародей">
-                            <span class="rank-tooltip">Чародей</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="player-card" data-player="Lesovik">
-                    <div class="skin-3d-wrapper">
-                        <canvas id="skin-container-Lesovik" class="skin-canvas"></canvas>
-                        <div id="error-Lesovik" class="skin-error-msg">⚠️ Файл Lesovik.png не найден</div>
-                    </div>
-
-                    <div class="player-name-wrap">
-                        <div class="player-name">Lesovik</div>
-                        <img class="lunar-client-badge" src="./assets/lunar-client-logo.svg" alt="Lunar Client" title="Lunar Client">
-                    </div>
-                    <div class="role-badge role-member">Участник</div>
-                    <div class="rank-group" aria-label="Ранги">
-                        <div class="rank-badge-item" tabindex="0" title="Рубка">
-                            <img src="./assets/woodcutting.png" alt="Рубка">
-                            <span class="rank-tooltip">Рубка</span>
-                        </div>
-                        <div class="rank-badge-item" tabindex="0" title="Лесник">
-                            <img src="./assets/forester.png" alt="Лесник">
-                            <span class="rank-tooltip">Лесник</span>
-                        </div>
-                    </div>
-                </div>
-
+            <div class="players-grid" id="players-grid">
+                <div class="players-status" id="players-status">Загрузка списка игроков из README.md...</div>
             </div>
         </section>
     </main>
@@ -994,36 +803,168 @@
     </footer>
 
     <script>
+        /* ============================================================
+           ForceCreate v3.3 — автозагрузка игроков из README.md
+           ------------------------------------------------------------
+           Формат README.md (по одному нику на строку):
+               Timur_Lag
+               Emran_Lag|brother
+               DoveSak
+               Lesovik
+               # строки-комментарии игнорируются
+
+           Роли: member (по умолчанию), admin, brother
+           Скины берутся с https://ely.by/skins/<ник>.png
+           ============================================================ */
+
         const viewers = {};
 
-        function loadSkinSafe(id, canvasId, errorId, skinPath) {
+        const ELY_SKIN_URL = (nick) =>
+            `https://ely.by/skins/${encodeURIComponent(nick)}.png`;
+
+        const ROLE_META = {
+            admin:   { label: 'Администратор', badge: 'role-admin',   card: 'role-admin-card'   },
+            brother: { label: 'Брат',          badge: 'role-brother', card: 'role-brother-card' },
+            member:  { label: 'Участник',      badge: 'role-member',  card: ''                  }
+        };
+
+        const FALLBACK_PLAYERS = [
+            { name: 'Timur_Lag', role: 'admin'   },
+            { name: 'Emran_Lag', role: 'brother' },
+            { name: 'DoveSak',   role: 'member'  },
+            { name: 'Lesovik',   role: 'member'  }
+        ];
+
+        /* ---------- Утилиты ---------- */
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function slugify(name) {
+            return String(name).toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'player';
+        }
+
+        /* ---------- Парсинг README.md ---------- */
+
+        function parseReadme(text) {
+            const players = [];
+            const seen = new Set();
+
+            text.split(/\r?\n/).forEach((rawLine) => {
+                let line = rawLine.trim();
+
+                // пропускаем пустые строки и комментарии
+                if (!line) return;
+                if (line.startsWith('#') || line.startsWith('//')) return;
+
+                // срезаем markdown-маркеры списка: "- ник", "* ник", "1. ник"
+                line = line.replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '');
+
+                // отрезаем возможные "хвосты" вида " — текст" / " - текст"
+                line = line.split(/\s+[—–]\s+/)[0];
+
+                // формат: "Ник" или "Ник|роль"
+                const parts = line.split('|').map((s) => s.trim());
+                const name = parts[0];
+                let role = (parts[1] || 'member').toLowerCase();
+
+                if (!name) return;
+                if (!ROLE_META[role]) role = 'member';
+
+                const key = name.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+
+                players.push({ name, role });
+            });
+
+            return players;
+        }
+
+        /* ---------- Рендер карточек ---------- */
+
+        function renderPlayers(players) {
+            const grid = document.getElementById('players-grid');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+
+            if (!players.length) {
+                const status = document.createElement('div');
+                status.className = 'players-status is-error';
+                status.textContent = 'README.md пуст — не найдено ни одного ника.';
+                grid.appendChild(status);
+                return;
+            }
+
+            players.forEach((player, index) => {
+                const meta = ROLE_META[player.role] || ROLE_META.member;
+                const slug = `${slugify(player.name)}_${index}`;
+                const canvasId = `skin-container-${slug}`;
+                const errorId = `error-${slug}`;
+
+                const card = document.createElement('div');
+                card.className = `player-card ${meta.card}`.trim();
+                card.setAttribute('data-player', player.name);
+
+                card.innerHTML = `
+                    <div class="skin-3d-wrapper">
+                        <canvas id="${canvasId}" class="skin-canvas"></canvas>
+                        <div id="${errorId}" class="skin-error-msg">
+                            ⚠️ Скин <b>${escapeHtml(player.name)}</b> не найден на ely.by
+                        </div>
+                    </div>
+                    <div class="player-name">${escapeHtml(player.name)}</div>
+                    <div class="role-badge ${meta.badge}">${meta.label}</div>
+                `;
+
+                grid.appendChild(card);
+
+                loadSkinFromEly(slug, canvasId, errorId, player.name);
+            });
+
+            initializeScrollReveal();
+        }
+
+        /* ---------- Загрузка скина с ely.by ---------- */
+
+        function loadSkinFromEly(id, canvasId, errorId, nickname) {
             const canvas = document.getElementById(canvasId);
             const errorElement = document.getElementById(errorId);
 
             if (!canvas || typeof skinview3d === 'undefined') return;
 
             const img = new Image();
+            img.crossOrigin = 'anonymous';
+
             img.onload = () => {
                 try {
                     viewers[id] = new skinview3d.SkinViewer({
                         canvas: canvas,
                         width: 220,
                         height: 280,
-                        skin: skinPath
+                        skin: img
                     });
                     configureViewer(viewers[id]);
                 } catch (e) {
-                    console.error("Ошибка инициализации 3D-модели: ", e);
+                    console.error('Ошибка инициализации 3D-модели:', e);
+                    if (errorElement) errorElement.style.display = 'block';
                 }
             };
+
             img.onerror = () => {
-                if (errorElement) errorElement.style.display = "block";
+                if (errorElement) errorElement.style.display = 'block';
             };
-            img.src = skinPath;
+
+            img.src = ELY_SKIN_URL(nickname);
         }
 
         function configureViewer(viewer) {
             if (!viewer) return;
+
             viewer.autoRotate = true;
             viewer.autoRotateSpeed = 0.7;
             viewer.animation = new skinview3d.WalkingAnimation();
@@ -1035,20 +976,31 @@
             if (wrapper) wrapper.classList.add('is-walking');
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadSkinSafe('timur', 'skin-container-timur', 'error-timur', './assets/Timur_Lag.png');
-            loadSkinSafe('dovesak', 'skin-container-dovesak', 'error-dovesak', './assets/DoveSak.png');
-            loadSkinSafe('Lesovik', 'skin-container-Lesovik', 'error-Lesovik', './assets/Lesovik.png');
-            loadSkinSafe('emran', 'skin-container-emran', 'error-emran', './assets/emran_lag.png');
-        });
+        /* ---------- Загрузка README.md ---------- */
 
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                document.getElementById('loading-screen').classList.add('is-hidden');
-            }, 1500);
+        async function loadPlayers() {
+            const grid = document.getElementById('players-grid');
+            let players = [];
 
-            initializeScrollReveal();
-        });
+            try {
+                const response = await fetch('./README.md', { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const text = await response.text();
+                players = parseReadme(text);
+            } catch (e) {
+                console.warn('Не удалось прочитать README.md, использую резервный список:', e);
+                players = FALLBACK_PLAYERS.slice();
+            }
+
+            if (!players.length) players = FALLBACK_PLAYERS.slice();
+
+            renderPlayers(players);
+            if (grid) grid.setAttribute('data-loaded', 'true');
+        }
+
+        /* ---------- Анимация появления при скролле ---------- */
+
+        let revealObserver = null;
 
         function initializeScrollReveal() {
             const revealItems = document.querySelectorAll(
@@ -1056,48 +1008,71 @@
             );
 
             revealItems.forEach((item, index) => {
-                item.classList.add('reveal-on-scroll');
-                item.style.transitionDelay = `${(index % 4) * 90}ms`;
+                if (!item.classList.contains('reveal-on-scroll')) {
+                    item.classList.add('reveal-on-scroll');
+                    item.style.transitionDelay = `${(index % 4) * 90}ms`;
+                }
             });
 
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
-                revealItems.forEach(item => item.classList.add('is-visible'));
+                revealItems.forEach((item) => item.classList.add('is-visible'));
                 return;
             }
 
-            const revealObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (!entry.isIntersecting) return;
-                    entry.target.classList.add('is-visible');
-                    observer.unobserve(entry.target);
-                });
-            }, { threshold: 0.12, rootMargin: '0px 0px -40px' });
+            if (!revealObserver) {
+                revealObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach((entry) => {
+                        if (!entry.isIntersecting) return;
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target);
+                    });
+                }, { threshold: 0.12, rootMargin: '0px 0px -40px' });
+            }
 
-            revealItems.forEach(item => revealObserver.observe(item));
+            revealItems.forEach((item) => {
+                if (!item.classList.contains('is-visible')) revealObserver.observe(item);
+            });
         }
 
+        /* ---------- Инициализация ---------- */
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const loadingMessage = document.getElementById('loading-message');
+
+            const playersPromise = loadPlayers().catch((err) => {
+                console.error(err);
+            });
+
+            const minDelay = new Promise((resolve) => setTimeout(resolve, 1500));
+
+            await Promise.all([playersPromise, minDelay]);
+
+            if (loadingMessage) loadingMessage.textContent = 'Готово!';
+            if (loadingScreen) loadingScreen.classList.add('is-hidden');
+
+            initializeScrollReveal();
+        });
+
+        /* ---------- Публичные помощники (для отладки) ---------- */
+
         function toggleRotate(key) {
-            if (viewers[key]) {
-                viewers[key].autoRotate = !viewers[key].autoRotate;
-            }
+            if (viewers[key]) viewers[key].autoRotate = !viewers[key].autoRotate;
         }
 
         function toggleWalk(key) {
-            if (viewers[key]) {
-                const canvas = viewers[key].canvas;
-                const wrapper = canvas.closest('.skin-3d-wrapper');
+            if (!viewers[key]) return;
+            const wrapper = viewers[key].canvas.closest('.skin-3d-wrapper');
 
-                if (viewers[key].animation) {
-                    viewers[key].animation = null;
-                    if (wrapper) wrapper.classList.remove('is-walking');
-                } else {
-                    viewers[key].animation = new skinview3d.WalkingAnimation();
-                    viewers[key].animation.speed = 0.6;
-                    if (wrapper) wrapper.classList.add('is-walking');
-                }
+            if (viewers[key].animation) {
+                viewers[key].animation = null;
+                if (wrapper) wrapper.classList.remove('is-walking');
+            } else {
+                viewers[key].animation = new skinview3d.WalkingAnimation();
+                viewers[key].animation.speed = 0.6;
+                if (wrapper) wrapper.classList.add('is-walking');
             }
         }
     </script>
 </body>
 </html>
-
