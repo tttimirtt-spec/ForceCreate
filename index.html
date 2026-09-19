@@ -687,313 +687,120 @@
     </footer>
 
     <script>
-    /* ============================================================
-       ForceCreate v3.3 — 3D-СКИНЫ С ELY.BY (ГАРАНТИРОВАННОЕ РЕШЕНИЕ)
-       ------------------------------------------------------------
-       Ely.by не отдаёт CORS → canvas «пачкается» → WebGL не работает.
-       Решение: images.weserv.nl — CDN-прокси, который:
-         1) сам идёт по редиректу ely.by → storage.ely.by
-         2) добавляет Access-Control-Allow-Origin: *
-         3) по &output=png возвращает именно PNG
-       В итоге <img crossOrigin="anonymous"> грузится «чистой»,
-       и skinview3d строит 3D-модель.
-       ============================================================ */
+    /* ForceCreate v3.3 — 3D-скины с ely.by (минимальная версия) */
 
     const viewers = {};
-
     const ROLE_META = {
         admin:   { label: 'Администратор', badge: 'role-admin',   card: 'role-admin-card'   },
         brother: { label: 'Брат',          badge: 'role-brother', card: 'role-brother-card' },
         member:  { label: 'Участник',      badge: 'role-member',  card: ''                  }
     };
 
-    const FALLBACK_PLAYERS = [
-        { name: 'Timur_Lag', role: 'admin'   },
-        { name: 'Emran_Lag', role: 'brother' },
-        { name: 'DoveSak',   role: 'member'  },
-        { name: 'Lesovik',   role: 'member'  }
-    ];
-
-    /* ---------- 1. ЗАГРУЗКА skinview3d С CDN ---------- */
-    function loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const s = document.createElement('script');
-            s.src = src; s.async = false;
-            s.onload = resolve;
-            s.onerror = () => reject(new Error('failed ' + src));
-            document.head.appendChild(s);
-        });
-    }
-
-    async function ensureSkinview3d() {
-        // Ждём, пока локальный скрипт (если он есть) закончит загрузку
-        for (let i = 0; i < 15; i++) {
-            if (typeof skinview3d !== 'undefined' && typeof skinview3d.SkinViewer === 'function') {
-                console.info('[3D] skinview3d доступна ✅');
-                return true;
-            }
-            await new Promise(r => setTimeout(r, 100));
-        }
-        // Если не появилась — грузим с CDN
-        const cdns = [
-            'https://cdn.jsdelivr.net/npm/skinview3d@3.4.2/bundles/skinview3d.bundle.js',
-            'https://unpkg.com/skinview3d@3.4.2/bundles/skinview3d.bundle.js'
-        ];
-        for (const url of cdns) {
-            try {
-                console.warn('[3D] Гружу skinview3d с CDN:', url);
-                await loadScript(url);
-                if (typeof skinview3d !== 'undefined' && typeof skinview3d.SkinViewer === 'function') {
-                    console.info('[3D] skinview3d загружена с CDN ✅');
-                    return true;
-                }
-            } catch (e) {
-                console.warn('[3D] CDN не сработал:', e.message);
-            }
-        }
-        console.error('[3D] НЕ УДАЛОСЬ загрузить skinview3d');
-        return false;
-    }
-
-    /* ---------- 2. УТИЛИТЫ ---------- */
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-    function slugify(n) {
-        return String(n).toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'player';
-    }
-
-    /* ---------- 3. ПАРСИНГ README.md ---------- */
+    // --- парсинг README ---
     function parseReadme(text) {
-        const out = []; const seen = new Set();
+        const out = [], seen = new Set();
         text.split(/\r?\n/).forEach(raw => {
             let line = raw.trim();
-            if (!line || line.startsWith('#') || line.startsWith('//')) return;
-            line = line.replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '');
-            line = line.split(/\s+[—–]\s+/)[0];
-            const p = line.split('|').map(s => s.trim());
-            const name = p[0];
-            let role = (p[1] || 'member').toLowerCase();
-            if (!name) return;
-            if (!ROLE_META[role]) role = 'member';
-            const k = name.toLowerCase();
-            if (seen.has(k)) return;
-            seen.add(k);
-            out.push({ name, role });
+            if (!line || line[0] === '#' || line.slice(0,2) === '//') return;
+            line = line.replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '').split(/\s+[—–]\s+/)[0];
+            const [name, role = 'member'] = line.split('|').map(s => s.trim());
+            const r = (role || 'member').toLowerCase();
+            if (!name || seen.has(name.toLowerCase())) return;
+            seen.add(name.toLowerCase());
+            out.push({ name, role: ROLE_META[r] ? r : 'member' });
         });
         return out;
     }
 
-    /* ---------- 4. РЕНДЕР КАРТОЧЕК ---------- */
-    function renderPlayers(players) {
+    // --- URL скина через weserv (он же CORS-прокси для ely.by) ---
+    function skinUrl(nick) {
+        const path = `ely.by/skins/${encodeURIComponent(nick)}.png`;
+        return `https://images.weserv.nl/?url=${encodeURIComponent(path)}&output=png`;
+    }
+
+    // --- загрузка картинки ---
+    function loadImg(src, cors) {
+        return new Promise((res, rej) => {
+            const i = new Image();
+            if (cors) i.crossOrigin = 'anonymous';
+            i.onload = () => res(i);
+            i.onerror = rej;
+            i.src = src;
+        });
+    }
+
+    // --- монтаж 3D ---
+    function mount3D(id, canvas, skin, nick) {
+        if (typeof skinview3d === 'undefined') return false;
+        try {
+            viewers[id] = new skinview3d.SkinViewer({ canvas, width: 220, height: 280, skin });
+            viewers[id].autoRotate = true;
+            viewers[id].autoRotateSpeed = 0.7;
+            viewers[id].zoom = 0.85;
+            viewers[id].animation = new skinview3d.WalkingAnimation();
+            canvas.closest('.skin-3d-wrapper')?.classList.add('is-walking');
+            return true;
+        } catch (e) { console.error(nick, e); return false; }
+    }
+
+    // --- рендер карточек ---
+    function render(players) {
         const grid = document.getElementById('players-grid');
-        if (!grid) return;
         grid.innerHTML = '';
-
-        if (!players.length) {
-            const st = document.createElement('div');
-            st.className = 'players-status is-error';
-            st.textContent = 'README.md пуст.';
-            grid.appendChild(st);
-            return;
-        }
-
-        players.forEach((pl, i) => {
-            const meta = ROLE_META[pl.role] || ROLE_META.member;
-            const slug = `${slugify(pl.name)}_${i}`;
-            const canvasId = `skin-container-${slug}`;
-            const errorId = `error-${slug}`;
-            const fallbackId = `fallback-${slug}`;
-
+        players.forEach((p, i) => {
+            const m = ROLE_META[p.role];
+            const slug = i;
+            const canvasId = `skin-c-${slug}`;
+            const fallbackId = `skin-f-${slug}`;
             const card = document.createElement('div');
-            card.className = `player-card ${meta.card}`.trim();
-            card.setAttribute('data-player', pl.name);
+            card.className = `player-card ${m.card}`.trim();
             card.innerHTML = `
                 <div class="skin-3d-wrapper">
                     <canvas id="${canvasId}" class="skin-canvas" width="220" height="280"></canvas>
-                    <div id="${fallbackId}" class="skin-2d-fallback"><img alt="${escapeHtml(pl.name)}" /></div>
-                    <div id="${errorId}" class="skin-error-msg">⚠️ Скин <b>${escapeHtml(pl.name)}</b> не найден на ely.by</div>
+                    <div id="${fallbackId}" class="skin-2d-fallback"><img alt="${p.name}"></div>
                 </div>
-                <div class="player-name">${escapeHtml(pl.name)}</div>
-                <div class="role-badge ${meta.badge}">${meta.label}</div>
-            `;
+                <div class="player-name">${p.name}</div>
+                <div class="role-badge ${m.badge}">${m.label}</div>`;
             grid.appendChild(card);
-            loadSkin(slug, canvasId, errorId, fallbackId, pl.name);
-        });
 
-        initializeScrollReveal();
-    }
-
-    /* ---------- 5. ЗАГРУЗКА КАРТИНКИ С CORS ---------- */
-    function loadImg(src, crossOrigin, timeoutMs = 10000) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            if (crossOrigin) img.crossOrigin = 'anonymous';
-            const timer = setTimeout(() => {
-                img.onload = img.onerror = null;
-                reject(new Error('timeout'));
-            }, timeoutMs);
-            img.onload = () => { clearTimeout(timer); resolve(img); };
-            img.onerror = () => { clearTimeout(timer); reject(new Error('error')); };
-            img.src = src;
-        });
-    }
-
-    /* ---------- 6. URL СКИНА ЧЕРЕЗ images.weserv.nl ---------- */
-    function buildSkinUrl(nick) {
-        // Кодируем URL обязательно, иначе weserv не поймёт параметр
-        const path = `ely.by/skins/${encodeURIComponent(nick)}.png`;
-        const e = encodeURIComponent(path);
-        // &output=png — чтобы вернулся именно PNG, а не WebP
-        return `https://images.weserv.nl/?url=${e}&output=png&n=-1`;
-    }
-
-    /* ---------- 7. 2D-ФОЛБЭК ---------- */
-    function show2D(fallbackId, src) {
-        const wrap = document.getElementById(fallbackId);
-        if (!wrap) return;
-        const img = wrap.querySelector('img');
-        if (img) { img.src = src; wrap.style.display = 'flex'; }
-    }
-    function hide2D(fallbackId) {
-        const wrap = document.getElementById(fallbackId);
-        if (wrap) wrap.style.display = 'none';
-    }
-
-    /* ---------- 8. МОНТАЖ 3D ---------- */
-    function mount3D(id, canvas, image, nick) {
-        if (typeof skinview3d === 'undefined' || typeof skinview3d.SkinViewer !== 'function') {
-            console.error(`[3D:${nick}] skinview3d недоступна`);
-            return false;
-        }
-        try {
-            // Чистим предыдущий viewer, если был
-            if (viewers[id] && typeof viewers[id].dispose === 'function') {
-                try { viewers[id].dispose(); } catch (e) {}
-            }
-
-            const viewer = new skinview3d.SkinViewer({
-                canvas: canvas,
-                width: 220,
-                height: 280,
-                skin: image // Передаём готовый <img> с crossOrigin
+            const url = skinUrl(p.name);
+            loadImg(url, true).then(img => {
+                if (!mount3D(slug, document.getElementById(canvasId), img, p.name)) throw 0;
+            }).catch(() => {
+                // 2D-фолбэк
+                const fb = document.getElementById(fallbackId);
+                fb.style.display = 'flex';
+                fb.querySelector('img').src = url;
             });
-
-            viewer.autoRotate = true;
-            viewer.autoRotateSpeed = 0.7;
-            viewer.fov = 65;
-            viewer.zoom = 0.85;
-
-            // WalkingAnimation — только если доступна
-            if (typeof skinview3d.WalkingAnimation === 'function') {
-                try {
-                    viewer.animation = new skinview3d.WalkingAnimation();
-                    viewer.animation.speed = 0.6;
-                    const wrapper = canvas.closest('.skin-3d-wrapper');
-                    if (wrapper) wrapper.classList.add('is-walking');
-                } catch (e) {}
-            }
-
-            viewers[id] = viewer;
-            console.info(`[3D:${nick}] SkinViewer создан ✅`);
-            return true;
-        } catch (e) {
-            console.error(`[3D:${nick}] ошибка:`, e);
-            return false;
-        }
+        });
     }
 
-    /* ---------- 9. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ СКИНА ---------- */
-    async function loadSkin(id, canvasId, errorId, fallbackId, nick) {
-        const canvas = document.getElementById(canvasId);
-        const errEl = document.getElementById(errorId);
-        if (!canvas) return;
-
-        const url = buildSkinUrl(nick);
-        console.info(`[skin:${nick}] URL: ${url}`);
-
-        // 1) Пытаемся получить картинку с CORS → 3D
-        try {
-            const img = await loadImg(url, true, 10000);
-            console.info(`[skin:${nick}] CORS-картинка загружена: ${img.width}x${img.height}`);
-            if (mount3D(id, canvas, img, nick)) {
-                hide2D(fallbackId);
-                return;
-            }
-            // 3D не собралось, но картинка есть — показываем 2D
-            show2D(fallbackId, url);
-            return;
-        } catch (e) {
-            console.warn(`[skin:${nick}] CORS-загрузка не удалась: ${e.message}`);
+    // --- загрузка skinview3d, если её нет ---
+    async function boot() {
+        for (let i = 0; i < 15 && typeof skinview3d === 'undefined'; i++)
+            await new Promise(r => setTimeout(r, 100));
+        if (typeof skinview3d === 'undefined') {
+            await new Promise((res, rej) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/skinview3d@3.4.2/bundles/skinview3d.bundle.js';
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+            }).catch(e => console.error('skinview3d CDN:', e));
         }
 
-        // 2) Показываем 2D без crossOrigin
-        try {
-            await loadImg(url, false, 10000);
-            console.info(`[skin:${nick}] 2D-фолбэк загружен`);
-            show2D(fallbackId, url);
-        } catch (e) {
-            console.error(`[skin:${nick}] не удалось загрузить даже 2D`);
-            if (errEl) errEl.style.display = 'block';
-        }
-    }
-
-    /* ---------- 10. ЗАГРУЗКА README.md ---------- */
-    async function loadPlayers() {
         try {
             const r = await fetch('./README.md', { cache: 'no-store' });
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            const players = parseReadme(await r.text());
-            console.info(`[README] игроков: ${players.length}`);
-            renderPlayers(players.length ? players : FALLBACK_PLAYERS);
+            render(parseReadme(await r.text()));
         } catch (e) {
-            console.warn('README.md не прочитан, беру резерв:', e);
-            renderPlayers(FALLBACK_PLAYERS);
+            console.error('README.md:', e);
         }
+
+        document.getElementById('loading-screen')?.classList.add('is-hidden');
+        // показать секции
+        document.querySelectorAll('.reveal-on-scroll').forEach(el => el.classList.add('is-visible'));
     }
 
-    /* ---------- 11. АНИМАЦИЯ ПРИ СКРОЛЛЕ ---------- */
-    let revealObserver = null;
-    function initializeScrollReveal() {
-        const items = document.querySelectorAll(
-            'main .page-section, main .info-grid > .card, main .page-section > .card, main .players-grid > .player-card, footer'
-        );
-        items.forEach((el, i) => {
-            if (!el.classList.contains('reveal-on-scroll')) {
-                el.classList.add('reveal-on-scroll');
-                el.style.transitionDelay = `${(i % 4) * 90}ms`;
-            }
-        });
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
-            items.forEach(el => el.classList.add('is-visible'));
-            return;
-        }
-        if (!revealObserver) {
-            revealObserver = new IntersectionObserver((entries, obs) => {
-                entries.forEach(en => {
-                    if (!en.isIntersecting) return;
-                    en.target.classList.add('is-visible');
-                    obs.unobserve(en.target);
-                });
-            }, { threshold: 0.12, rootMargin: '0px 0px -40px' });
-        }
-        items.forEach(el => { if (!el.classList.contains('is-visible')) revealObserver.observe(el); });
-    }
-
-    /* ---------- 12. СТАРТ ---------- */
-    window.addEventListener('DOMContentLoaded', async () => {
-        const scr = document.getElementById('loading-screen');
-        const msg = document.getElementById('loading-message');
-
-        const ok = await ensureSkinview3d();
-        if (!ok && msg) msg.textContent = 'Библиотека 3D не загрузилась';
-
-        await loadPlayers();
-
-        if (msg) msg.textContent = 'Готово!';
-        if (scr) scr.classList.add('is-hidden');
-        initializeScrollReveal();
-    });
+    window.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
