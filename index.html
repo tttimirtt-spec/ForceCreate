@@ -427,13 +427,14 @@
             display: none;
             position: absolute;
             color: var(--secondary);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             padding: 10px;
             z-index: 3;
             text-shadow: 0 0 5px rgba(0,0,0,0.8);
+            text-align: center;
         }
 
-        /* 2D-фолбэк, если 3D-движок не смог инициализироваться */
+        /* 2D-фолбэк для случая, когда 3D-движок недоступен */
         .skin-2d-fallback {
             display: none;
             position: absolute;
@@ -441,14 +442,13 @@
             z-index: 2;
             align-items: center;
             justify-content: center;
-            image-rendering: pixelated;
         }
 
         .skin-2d-fallback img {
-            max-width: 88%;
-            max-height: 88%;
+            max-width: 60%;
+            max-height: 85%;
             image-rendering: pixelated;
-            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.6));
         }
 
         .player-name {
@@ -601,7 +601,7 @@
             <div class="loading-spinner" aria-hidden="true"></div>
             <div class="loading-logo">Force<span style="color: var(--primary);">Create</span></div>
             <h1 class="loading-title">Загрузка сайта</h1>
-            <p class="loading-message" id="loading-message">Читаем README.md и подгружаем скины...</p>
+            <p class="loading-message" id="loading-message">Читаем README.md и подгружаем скины с ely.by...</p>
         </div>
     </div>
 
@@ -620,7 +620,7 @@
                 <div class="version-tag"><span>⚡</span> ОБНОВЛЕНИЕ 3.3 HYPERFORGE</div>
                 <h1 class="hero-title">Новая Эпоха Машин, Энергии & Свободы</h1>
                 <p class="hero-desc">
-                    ForceCreate 3.3 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ. Состав игроков формируется автоматически из README.md, а скины подтягиваются по нику.
+                    ForceCreate 3.3 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ. Состав игроков формируется автоматически из README.md, а скины подтягиваются с ely.by.
                 </p>
 
                 <a class="telegram-btn" href="https://t.me/Timur_Lag" target="_blank" rel="noopener noreferrer">Подать заявку в ТГ</a>
@@ -660,7 +660,7 @@
                     <strong>ForceCreate 3.3</strong> — это закрытое инженерное сообщество нового уровня. Здесь акцент смещён на масштабные промышленные проекты, энергоинфраструктуру, логистику и командную работу над по-настоящему большими сооружениями.
                 </p>
                 <p style="color: var(--text-dim); margin-bottom: 1rem;">
-                    В обновлении 3.3 состав игроков автоматически формируется из файла <strong>README.md</strong>, а скины подтягиваются по нику через сервисы <strong>mc-heads.net</strong> и <strong>ely.by</strong> — просто добавьте новый ник новой строкой, и карточка игрока появится сама.
+                    В обновлении 3.3 состав игроков автоматически формируется из файла <strong>README.md</strong>, а скины подтягиваются напрямую с <strong>ely.by</strong> — просто добавьте новый ник новой строкой, и карточка игрока появится сама.
                 </p>
                 <p style="color: var(--text-dim);">
                     Создавайте синхронизированные механизмы, строите высокоточные заводы и развивайте единую сеть производства вместе с ForceCreate.
@@ -691,31 +691,47 @@
         /* ============================================================
            ForceCreate v3.3 — автозагрузка игроков из README.md
            ------------------------------------------------------------
-           README.md (по одному нику на строку):
+           Источник скинов: ТОЛЬКО ely.by.
+
+           Схема загрузки:
+             1) прямой запрос на ely.by (skinsystem.ely.by → ely.by/skins)
+             2) если CORS блокирует — через публичный CORS-прокси
+                (сам файл всё равно берётся с ely.by)
+             3) если 3D не инициализировался — 2D-превью
+
+           Формат README.md (по одному нику на строку):
                Timur_Lag|admin
                Emran_Lag|brother
                DoveSak
                Lesovik
            Роли: member (default), admin, brother.
-
-           Скины: несколько источников с фолбэком. mc-heads.net работает
-           для Mojang-аккаунтов, ely.by — для ely.by-аккаунтов. Если fetch
-           не сработал — пробуем 2D-фолбэк через <img> без crossOrigin,
-           чтобы игрок хотя бы увидел скин.
            ============================================================ */
 
         const viewers = {};
 
-        // Список источников скинов по нику. Пробуем по порядку.
-        const SKIN_ENDPOINTS = (nick) => {
+        // Только ely.by. Прямой запрос + резервные CORS-прокси,
+        // которые возвращают тот же файл с ely.by.
+        const ELY_SKIN_SOURCES = (nick) => {
             const n = encodeURIComponent(nick);
-            return [
-                `https://mc-heads.net/skin/${n}`,                  // Mojang + Ely.by, CORS OK
-                `https://minotar.net/skin/${n}`,                   // Mojang, CORS OK
-                `https://ely.by/skins/${n}.png`,                   // Ely.by (302 → storage)
-                `https://skinsystem.ely.by/skins/${n}.png`,        // Ely.by legacy
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://ely.by/skins/${n}.png`)}`
+
+            const direct = [
+                `https://skinsystem.ely.by/skins/${n}.png`,
+                `https://ely.by/skins/${n}.png`
             ];
+
+            // Прозрачные прокси: сами файлы берутся с ely.by,
+            // прокси нужен только чтобы обойти отсутствие CORS-заголовков.
+            const proxies = [
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`
+            ];
+
+            const list = [...direct];
+            proxies.forEach((wrap) => {
+                direct.forEach((u) => list.push(wrap(u)));
+            });
+
+            return list;
         };
 
         const ROLE_META = {
@@ -808,7 +824,7 @@
                             <img alt="${escapeHtml(player.name)}" />
                         </div>
                         <div id="${errorId}" class="skin-error-msg">
-                            ⚠️ Скин <b>${escapeHtml(player.name)}</b> не найден
+                            ⚠️ Скин <b>${escapeHtml(player.name)}</b> не найден на ely.by
                         </div>
                     </div>
                     <div class="player-name">${escapeHtml(player.name)}</div>
@@ -823,12 +839,12 @@
             initializeScrollReveal();
         }
 
-        /* ---------- Загрузка скина: fetch + blob, потом 2D-фолбэк ---------- */
+        /* ---------- Загрузка скина с ely.by ---------- */
 
         async function fetchSkinBlob(nickname) {
-            const endpoints = SKIN_ENDPOINTS(nickname);
+            const sources = ELY_SKIN_SOURCES(nickname);
 
-            for (const url of endpoints) {
+            for (const url of sources) {
                 try {
                     const res = await fetch(url, {
                         method: 'GET',
@@ -844,22 +860,22 @@
 
                     const ct = (res.headers.get('content-type') || '').toLowerCase();
 
-                    // Отсекаем явный HTML/JSON (некоторые API так отдают «не найден»)
-                    if (ct.includes('text/html') || ct.includes('application/json')) {
-                        console.warn(`[skin:${nickname}] ${url} → not an image (${ct})`);
+                    // ely.by может вернуть HTML-страницу «не найдено» с кодом 200.
+                    if (ct.includes('text/html')) {
+                        console.warn(`[skin:${nickname}] ${url} → HTML (скин не найден)`);
                         continue;
                     }
 
                     const blob = await res.blob();
                     if (!blob || blob.size < 64) {
-                        console.warn(`[skin:${nickname}] ${url} → empty blob`);
+                        console.warn(`[skin:${nickname}] ${url} → пустой blob`);
                         continue;
                     }
 
                     console.info(`[skin:${nickname}] OK ← ${url} (${blob.size} B, ${ct || 'unknown'})`);
                     return blob;
                 } catch (e) {
-                    console.warn(`[skin:${nickname}] ${url} → fetch error:`, e.message || e);
+                    console.warn(`[skin:${nickname}] ${url} → ошибка: ${e.message || e}`);
                 }
             }
 
@@ -876,7 +892,6 @@
             img.src = url;
             img.onload = () => {
                 wrap.style.display = 'flex';
-                // освобождаем blob URL после загрузки
                 setTimeout(() => URL.revokeObjectURL(url), 30000);
             };
             img.onerror = () => {
