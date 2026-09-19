@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ForceCreate v3.3 — HyperForge Edition</title>
-    <!-- Локальная копия библиотеки skinview3d -->
     <script src="./scripts/skinview3d.bundle.js"></script>
     <style>
         :root {
@@ -39,7 +38,6 @@
             position: relative;
         }
 
-        /* Эффект сканирующей линии (Cyber Scanline) */
         body::before {
             content: " ";
             display: block;
@@ -52,7 +50,6 @@
             opacity: 0.6;
         }
 
-        /* Анимированный кибер-фон */
         .bg-grid {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -71,7 +68,6 @@
             100% { background-position: 0 0, 0 0, 0 40px, 40px 0; }
         }
 
-        /* ВЕРХНЯЯ ШАПКА */
         header {
             display: flex;
             justify-content: space-between;
@@ -87,7 +83,6 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.7);
         }
 
-        /* Логотип */
         .logo {
             font-size: 1.5rem;
             font-weight: 900;
@@ -148,12 +143,6 @@
             }
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Главная страница */
         .hero { text-align: center; padding: 2rem 0; }
 
         .version-tag {
@@ -239,13 +228,9 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .telegram-btn,
-            .telegram-btn::before {
-                animation: none;
-            }
+            .telegram-btn, .telegram-btn::before { animation: none; }
         }
 
-        /* Карточки информации и описания */
         .info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -302,7 +287,6 @@
             text-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
         }
 
-        /* Сетка игроков */
         .players-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(220px, 1fr));
@@ -326,15 +310,11 @@
         .players-status.is-error { color: var(--secondary); }
 
         @media (max-width: 1100px) {
-            .players-grid {
-                grid-template-columns: repeat(2, minmax(220px, 1fr));
-            }
+            .players-grid { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
         }
 
         @media (max-width: 640px) {
-            .players-grid {
-                grid-template-columns: 1fr;
-            }
+            .players-grid { grid-template-columns: 1fr; }
         }
 
         .player-card {
@@ -399,9 +379,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
 
-        /* Голографический цоколь */
         .skin-3d-wrapper::after {
             content: '';
             position: absolute;
@@ -453,6 +433,24 @@
             text-shadow: 0 0 5px rgba(0,0,0,0.8);
         }
 
+        /* 2D-фолбэк, если 3D-движок не смог инициализироваться */
+        .skin-2d-fallback {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            align-items: center;
+            justify-content: center;
+            image-rendering: pixelated;
+        }
+
+        .skin-2d-fallback img {
+            max-width: 88%;
+            max-height: 88%;
+            image-rendering: pixelated;
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
+        }
+
         .player-name {
             font-size: 1.4rem;
             font-weight: 800;
@@ -460,21 +458,6 @@
             margin-bottom: 0.4rem;
             letter-spacing: 0.5px;
             word-break: break-word;
-        }
-
-        .player-name-wrap {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 0.4rem;
-        }
-
-        .lunar-client-badge {
-            width: 18px;
-            height: 18px;
-            object-fit: contain;
-            filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
         }
 
         .role-badge {
@@ -486,99 +469,6 @@
             margin-bottom: 1rem;
             text-transform: uppercase;
             letter-spacing: 1px;
-        }
-
-        .rank-group {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 0.5rem;
-        }
-
-        .rank-badge-item {
-            position: relative;
-            width: 42px;
-            height: 42px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.04);
-            box-shadow: 0 0 12px rgba(0, 240, 255, 0.08);
-            transition: all 0.2s ease;
-        }
-
-        .role-admin-card .rank-badge-item {
-            border-color: rgba(255, 48, 48, 0.7);
-            box-shadow: 0 0 14px rgba(255, 35, 35, 0.3);
-        }
-
-        .rank-badge-item:hover {
-            transform: translateY(-2px) scale(1.04);
-            border-color: var(--primary);
-            box-shadow: 0 0 18px rgba(0, 240, 255, 0.22);
-        }
-
-        .role-admin-card .rank-badge-item:hover {
-            border-color: #ff3030;
-            box-shadow: 0 0 20px rgba(255, 35, 35, 0.55);
-        }
-
-        .role-brother-card .rank-badge-item {
-            border-color: rgba(251, 191, 36, 0.65);
-            box-shadow: 0 0 14px rgba(251, 191, 36, 0.28);
-        }
-
-        .role-brother-card .rank-badge-item:hover {
-            border-color: var(--gold);
-            box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
-        }
-
-        .rank-badge-item img {
-            width: 22px;
-            height: 22px;
-            object-fit: contain;
-            filter: drop-shadow(0 0 4px rgba(255,255,255,0.25));
-        }
-
-        .rank-tooltip {
-            position: absolute;
-            bottom: calc(100% + 10px);
-            left: 50%;
-            transform: translateX(-50%) translateY(8px);
-            opacity: 0;
-            visibility: hidden;
-            background: rgba(5, 10, 18, 0.96);
-            color: #fff;
-            border: 1px solid var(--primary);
-            border-radius: 8px;
-            padding: 6px 10px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            white-space: nowrap;
-            pointer-events: none;
-            transition: all 0.2s ease;
-            z-index: 10;
-        }
-
-        .rank-tooltip::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 6px 6px 0 6px;
-            border-style: solid;
-            border-color: var(--primary) transparent transparent transparent;
-        }
-
-        .rank-badge-item:hover .rank-tooltip,
-        .rank-badge-item:focus-within .rank-tooltip {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
         }
 
         .role-admin {
@@ -717,7 +607,6 @@
 
     <div class="bg-grid"></div>
 
-    <!-- ВЕРХНЯЯ ШАПКА -->
     <header>
         <div class="logo">
             Force<span>Create</span>
@@ -726,20 +615,18 @@
     </header>
 
     <main>
-        <!-- 1. ГЛАВНАЯ СТРАНИЦА -->
         <section id="main-page" class="page-section active">
             <div class="hero">
                 <div class="version-tag"><span>⚡</span> ОБНОВЛЕНИЕ 3.3 HYPERFORGE</div>
                 <h1 class="hero-title">Новая Эпоха Машин, Энергии & Свободы</h1>
                 <p class="hero-desc">
-                    ForceCreate 3.3 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ. Состав игроков теперь формируется автоматически из README.md, а скины подтягиваются с ely.by.
+                    ForceCreate 3.3 — это более глубокий и динамичный этап развития приватного сервера: масштабные фабрики, мощные энергосети, сложные логистические цепочки и стильная индустриальная атмосфера без границ. Состав игроков формируется автоматически из README.md, а скины подтягиваются по нику.
                 </p>
 
                 <a class="telegram-btn" href="https://t.me/Timur_Lag" target="_blank" rel="noopener noreferrer">Подать заявку в ТГ</a>
             </div>
         </section>
 
-        <!-- 2. СТРАНИЦА ИНФОРМАЦИЯ -->
         <section id="info-page" class="page-section">
             <h2 class="section-title">Информация о сервере</h2>
             <div class="info-grid">
@@ -765,7 +652,6 @@
             </div>
         </section>
 
-        <!-- 3. СТРАНИЦА ОПИСАНИЕ -->
         <section id="desc-page" class="page-section">
             <h2 class="section-title">Концепция Проекта</h2>
             <div class="card" style="max-width: 800px; margin: 0 auto; line-height: 1.8;">
@@ -774,7 +660,7 @@
                     <strong>ForceCreate 3.3</strong> — это закрытое инженерное сообщество нового уровня. Здесь акцент смещён на масштабные промышленные проекты, энергоинфраструктуру, логистику и командную работу над по-настоящему большими сооружениями.
                 </p>
                 <p style="color: var(--text-dim); margin-bottom: 1rem;">
-                    В обновлении 3.3 состав игроков автоматически формируется из файла <strong>README.md</strong>, а скины подтягиваются через сервис <strong>ely.by</strong> — просто добавьте новый ник новой строкой, и карточка игрока появится сама.
+                    В обновлении 3.3 состав игроков автоматически формируется из файла <strong>README.md</strong>, а скины подтягиваются по нику через сервисы <strong>mc-heads.net</strong> и <strong>ely.by</strong> — просто добавьте новый ник новой строкой, и карточка игрока появится сама.
                 </p>
                 <p style="color: var(--text-dim);">
                     Создавайте синхронизированные механизмы, строите высокоточные заводы и развивайте единую сеть производства вместе с ForceCreate.
@@ -782,7 +668,6 @@
             </div>
         </section>
 
-        <!-- 4. СТРАНИЦА ИГРОКОВ -->
         <section id="players-page" class="page-section">
             <h2 class="section-title">Состав Сервера</h2>
 
@@ -806,25 +691,32 @@
         /* ============================================================
            ForceCreate v3.3 — автозагрузка игроков из README.md
            ------------------------------------------------------------
-           Формат README.md (по одному нику на строку):
+           README.md (по одному нику на строку):
                Timur_Lag|admin
                Emran_Lag|brother
                DoveSak
                Lesovik
-               # комментарии игнорируются
+           Роли: member (default), admin, brother.
 
-           Роли: member (по умолчанию), admin, brother
-           Скины берутся с ely.by через fetch + Blob (обходим 302-редирект)
+           Скины: несколько источников с фолбэком. mc-heads.net работает
+           для Mojang-аккаунтов, ely.by — для ely.by-аккаунтов. Если fetch
+           не сработал — пробуем 2D-фолбэк через <img> без crossOrigin,
+           чтобы игрок хотя бы увидел скин.
            ============================================================ */
 
         const viewers = {};
 
-        // ely.by отдаёт PNG через 302-редирект, поэтому грузим через fetch
-        // и превращаем в blob: URL — так канвас не пачкается и WebGL работает.
-        const ELY_SKIN_ENDPOINTS = (nick) => [
-            `https://skinsystem.ely.by/skins/${encodeURIComponent(nick)}.png`,
-            `https://ely.by/skins/${encodeURIComponent(nick)}.png`
-        ];
+        // Список источников скинов по нику. Пробуем по порядку.
+        const SKIN_ENDPOINTS = (nick) => {
+            const n = encodeURIComponent(nick);
+            return [
+                `https://mc-heads.net/skin/${n}`,                  // Mojang + Ely.by, CORS OK
+                `https://minotar.net/skin/${n}`,                   // Mojang, CORS OK
+                `https://ely.by/skins/${n}.png`,                   // Ely.by (302 → storage)
+                `https://skinsystem.ely.by/skins/${n}.png`,        // Ely.by legacy
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://ely.by/skins/${n}.png`)}`
+            ];
+        };
 
         const ROLE_META = {
             admin:   { label: 'Администратор', badge: 'role-admin',   card: 'role-admin-card'   },
@@ -859,18 +751,12 @@
 
             text.split(/\r?\n/).forEach((rawLine) => {
                 let line = rawLine.trim();
-
-                // пропускаем пустые строки и комментарии
                 if (!line) return;
                 if (line.startsWith('#') || line.startsWith('//')) return;
 
-                // срезаем markdown-маркеры списка: "- ник", "* ник", "1. ник"
                 line = line.replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '');
-
-                // отрезаем возможные "хвосты" вида " — текст" / " - текст"
                 line = line.split(/\s+[—–]\s+/)[0];
 
-                // формат: "Ник" или "Ник|роль"
                 const parts = line.split('|').map((s) => s.trim());
                 const name = parts[0];
                 let role = (parts[1] || 'member').toLowerCase();
@@ -909,6 +795,7 @@
                 const slug = `${slugify(player.name)}_${index}`;
                 const canvasId = `skin-container-${slug}`;
                 const errorId = `error-${slug}`;
+                const fallbackId = `fallback-${slug}`;
 
                 const card = document.createElement('div');
                 card.className = `player-card ${meta.card}`.trim();
@@ -917,8 +804,11 @@
                 card.innerHTML = `
                     <div class="skin-3d-wrapper">
                         <canvas id="${canvasId}" class="skin-canvas"></canvas>
+                        <div id="${fallbackId}" class="skin-2d-fallback">
+                            <img alt="${escapeHtml(player.name)}" />
+                        </div>
                         <div id="${errorId}" class="skin-error-msg">
-                            ⚠️ Скин <b>${escapeHtml(player.name)}</b> не найден на ely.by
+                            ⚠️ Скин <b>${escapeHtml(player.name)}</b> не найден
                         </div>
                     </div>
                     <div class="player-name">${escapeHtml(player.name)}</div>
@@ -927,16 +817,16 @@
 
                 grid.appendChild(card);
 
-                loadSkinFromEly(slug, canvasId, errorId, player.name);
+                loadSkin(slug, canvasId, errorId, fallbackId, player.name);
             });
 
             initializeScrollReveal();
         }
 
-        /* ---------- Загрузка скина с ely.by через fetch + Blob ---------- */
+        /* ---------- Загрузка скина: fetch + blob, потом 2D-фолбэк ---------- */
 
         async function fetchSkinBlob(nickname) {
-            const endpoints = ELY_SKIN_ENDPOINTS(nickname);
+            const endpoints = SKIN_ENDPOINTS(nickname);
 
             for (const url of endpoints) {
                 try {
@@ -947,31 +837,60 @@
                         cache: 'no-store'
                     });
 
-                    if (!res.ok) continue;
+                    if (!res.ok) {
+                        console.warn(`[skin:${nickname}] ${url} → HTTP ${res.status}`);
+                        continue;
+                    }
 
-                    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+                    const ct = (res.headers.get('content-type') || '').toLowerCase();
 
-                    // ely.by отдаёт HTML-страницу, если скина нет — отсекаем.
-                    if (!contentType.startsWith('image/')) continue;
+                    // Отсекаем явный HTML/JSON (некоторые API так отдают «не найден»)
+                    if (ct.includes('text/html') || ct.includes('application/json')) {
+                        console.warn(`[skin:${nickname}] ${url} → not an image (${ct})`);
+                        continue;
+                    }
 
                     const blob = await res.blob();
-                    if (!blob || blob.size === 0) continue;
-                    if (!blob.type.startsWith('image/')) continue;
+                    if (!blob || blob.size < 64) {
+                        console.warn(`[skin:${nickname}] ${url} → empty blob`);
+                        continue;
+                    }
 
+                    console.info(`[skin:${nickname}] OK ← ${url} (${blob.size} B, ${ct || 'unknown'})`);
                     return blob;
                 } catch (e) {
-                    // пробуем следующий endpoint
+                    console.warn(`[skin:${nickname}] ${url} → fetch error:`, e.message || e);
                 }
             }
 
             return null;
         }
 
-        async function loadSkinFromEly(id, canvasId, errorId, nickname) {
+        function show2DFallback(fallbackId, blob) {
+            const wrap = document.getElementById(fallbackId);
+            if (!wrap) return false;
+            const img = wrap.querySelector('img');
+            if (!img) return false;
+
+            const url = URL.createObjectURL(blob);
+            img.src = url;
+            img.onload = () => {
+                wrap.style.display = 'flex';
+                // освобождаем blob URL после загрузки
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                wrap.style.display = 'none';
+            };
+            return true;
+        }
+
+        async function loadSkin(id, canvasId, errorId, fallbackId, nickname) {
             const canvas = document.getElementById(canvasId);
             const errorElement = document.getElementById(errorId);
 
-            if (!canvas || typeof skinview3d === 'undefined') return;
+            if (!canvas) return;
 
             const blob = await fetchSkinBlob(nickname);
 
@@ -980,23 +899,28 @@
                 return;
             }
 
-            // blob: — того же origin, канвас не пачкается, WebGL-текстура грузится нормально
-            const blobUrl = URL.createObjectURL(blob);
+            // Пробуем 3D через skinview3d
+            if (typeof skinview3d !== 'undefined') {
+                const blobUrl = URL.createObjectURL(blob);
+                try {
+                    viewers[id] = new skinview3d.SkinViewer({
+                        canvas: canvas,
+                        width: 220,
+                        height: 280,
+                        skin: blobUrl
+                    });
+                    configureViewer(viewers[id]);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+                    return;
+                } catch (e) {
+                    console.error(`[skin:${nickname}] 3D init error:`, e);
+                    URL.revokeObjectURL(blobUrl);
+                }
+            }
 
-            try {
-                viewers[id] = new skinview3d.SkinViewer({
-                    canvas: canvas,
-                    width: 220,
-                    height: 280,
-                    skin: blobUrl
-                });
-                configureViewer(viewers[id]);
-            } catch (e) {
-                console.error('Ошибка инициализации 3D-модели:', e);
-                if (errorElement) errorElement.style.display = 'block';
-            } finally {
-                // skinview3d уже загрузил текстуру — можно освободить
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+            // 3D не сработал — показываем 2D-превью
+            if (!show2DFallback(fallbackId, blob) && errorElement) {
+                errorElement.style.display = 'block';
             }
         }
 
@@ -1025,6 +949,7 @@
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const text = await response.text();
                 players = parseReadme(text);
+                console.info(`[README] загружено игроков: ${players.length}`);
             } catch (e) {
                 console.warn('Не удалось прочитать README.md, использую резервный список:', e);
                 players = FALLBACK_PLAYERS.slice();
@@ -1078,10 +1003,7 @@
             const loadingScreen = document.getElementById('loading-screen');
             const loadingMessage = document.getElementById('loading-message');
 
-            const playersPromise = loadPlayers().catch((err) => {
-                console.error(err);
-            });
-
+            const playersPromise = loadPlayers().catch((err) => console.error(err));
             const minDelay = new Promise((resolve) => setTimeout(resolve, 1500));
 
             await Promise.all([playersPromise, minDelay]);
