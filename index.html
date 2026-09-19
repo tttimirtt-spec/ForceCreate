@@ -688,33 +688,21 @@
 
     <script>
     /* ============================================================
-       ForceCreate v3.3 — автозагрузка игроков из README.md
-       Скины ТОЛЬКО с ely.by.
-       Стратегия:
-         1) <img crossOrigin="anonymous"> — браузер сам идёт по 302.
-            Если ely.by отдаёт CORS хотя бы на каком-то этапе — работает 3D.
-         2) Быстрые CDN-прокси (weserv, wsrv, corsproxy) — фолбэк.
-         3) Обычный <img> без crossOrigin — гарантированный 2D-показ
-            (без 3D, но скин ВИДЕН).
+       ForceCreate v3.3 — 3D-скины с ely.by
+       ------------------------------------------------------------
+       ely.by отдаёт скин через 302 → storage.ely.by и БЕЗ CORS.
+       Прямой <img crossOrigin> не проходит → canvas tainted → нет 3D.
+
+       Решение: получаем картинку через images.weserv.nl / wsrv.nl.
+       Этот CDN:
+         - сам идёт по редиректу ely.by → storage.ely.by
+         - отдаёт Access-Control-Allow-Origin: *
+         - по &output=png возвращает именно PNG (иначе может быть WebP)
+       В итоге <img crossOrigin="anonymous"> грузится «чистой»,
+       canvas не портится, skinview3d строит 3D-модель.
        ============================================================ */
 
     const viewers = {};
-
-    const ELY_DIRECT = (nick) => [
-        `https://skinsystem.ely.by/skins/${encodeURIComponent(nick)}.png`,
-        `https://ely.by/skins/${encodeURIComponent(nick)}.png`
-    ];
-
-    const ELY_PROXIES = (nick) => {
-        const raw = `ely.by/skins/${encodeURIComponent(nick)}.png`;
-        const e = encodeURIComponent(raw);
-        return [
-            `https://images.weserv.nl/?url=${e}&n=-1`,
-            `https://wsrv.nl/?url=${e}&n=-1`,
-            `https://corsproxy.io/?url=${e}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent('https://' + raw)}`
-        ];
-    };
 
     const ROLE_META = {
         admin:   { label: 'Администратор', badge: 'role-admin',   card: 'role-admin-card'   },
@@ -728,6 +716,8 @@
         { name: 'DoveSak',   role: 'member'  },
         { name: 'Lesovik',   role: 'member'  }
     ];
+
+    /* ---------- Утилиты ---------- */
 
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -755,6 +745,8 @@
         });
         return out;
     }
+
+    /* ---------- Рендер ---------- */
 
     function renderPlayers(players) {
         const grid = document.getElementById('players-grid');
@@ -799,9 +791,9 @@
         initializeScrollReveal();
     }
 
-    /* ---------- Загрузка ---------- */
+    /* ---------- Загрузка картинки через <img> ---------- */
 
-    function loadImg(src, crossOrigin, timeoutMs = 5000) {
+    function loadImg(src, crossOrigin, timeoutMs = 6000) {
         return new Promise((resolve, reject) => {
             const img = new Image();
             if (crossOrigin) img.crossOrigin = 'anonymous';
@@ -815,88 +807,82 @@
         });
     }
 
-    async function fetchWithTimeout(url, ms = 5000) {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), ms);
-        try {
-            return await fetch(url, { mode: 'cors', redirect: 'follow', cache: 'no-store', signal: ctrl.signal });
-        } finally { clearTimeout(t); }
+    /* ---------- Список URL: только ely.by, но через CORS-пути ---------- */
+
+    function buildSources(nick) {
+        const n = encodeURIComponent(nick);
+        const elyPath = `ely.by/skins/${n}.png`;         // без схемы (weserv так принимает)
+        const elyFull = `https://ely.by/skins/${n}.png`;
+        const e = encodeURIComponent(elyPath);
+
+        return {
+            // crossOrigin <img> — даёт чистый canvas и 3D.
+            // Первый же работающий источник используется.
+            cors: [
+                // Прямой запрос (сработает, если ely.by когда-то отдаст CORS)
+                `https://skinsystem.ely.by/skins/${n}.png`,
+                `https://ely.by/skins/${n}.png`,
+                // images.weserv.nl — CDN-прокси картинок с CORS и поддержкой редиректов
+                `https://images.weserv.nl/?url=${e}&output=png`,
+                `https://wsrv.nl/?url=${e}&output=png`,
+                // corsproxy.io — тоже редиректит и отдаёт CORS
+                `https://corsproxy.io/?url=${encodeURIComponent(elyFull)}`
+            ],
+            // Обычный <img> без crossOrigin — гарантированный 2D-фолбэк
+            plain: [
+                `https://skinsystem.ely.by/skins/${n}.png`,
+                `https://ely.by/skins/${n}.png`
+            ]
+        };
     }
 
-    async function tryDirectImg(nick) {
-        // 1) <img crossOrigin="anonymous"> — если ely.by отдаёт CORS, получим чистый Image
-        for (const url of ELY_DIRECT(nick)) {
-            const t0 = performance.now();
-            try {
-                const img = await loadImg(url, true, 5000);
-                console.info(`[skin:${nick}] ✅ crossOrigin <img> ← ${url} (${Math.round(performance.now()-t0)}мс)`);
-                return { kind: 'img-clean', img };
-            } catch (e) {
-                console.warn(`[skin:${nick}] ❌ crossOrigin <img> ${url} → ${e.message}`);
-            }
-        }
-        return null;
-    }
+    /* ---------- Показ 2D ---------- */
 
-    async function tryProxies(nick) {
-        for (const url of ELY_PROXIES(nick)) {
-            const t0 = performance.now();
-            try {
-                const res = await fetchWithTimeout(url, 5000);
-                if (!res.ok) { console.warn(`[skin:${nick}] ❌ ${url} → HTTP ${res.status}`); continue; }
-                const ct = (res.headers.get('content-type') || '').toLowerCase();
-                if (ct.includes('text/html')) { console.warn(`[skin:${nick}] ❌ ${url} → HTML`); continue; }
-                const blob = await res.blob();
-                if (!blob || blob.size < 64) { console.warn(`[skin:${nick}] ❌ ${url} → empty`); continue; }
-                console.info(`[skin:${nick}] ✅ proxy ← ${url} (${blob.size}B, ${Math.round(performance.now()-t0)}мс)`);
-                return { kind: 'blob', blob };
-            } catch (e) {
-                console.warn(`[skin:${nick}] ❌ ${url} → ${e.name === 'AbortError' ? 'timeout' : e.message}`);
-            }
-        }
-        return null;
-    }
-
-    async function tryPlainImg(nick) {
-        // Финальный фолбэк: обычный <img> без crossOrigin. Canvas будет "грязный",
-        // но браузер гарантированно ОТОБРАЗИТ скин в 2D.
-        for (const url of ELY_DIRECT(nick)) {
-            try {
-                const img = await loadImg(url, false, 5000);
-                console.info(`[skin:${nick}] ⚠️ plain <img> (2D only) ← ${url}`);
-                return { kind: 'img-tainted', img };
-            } catch (e) {
-                console.warn(`[skin:${nick}] ❌ plain <img> ${url} → ${e.message}`);
-            }
-        }
-        return null;
-    }
-
-    function show2D(fallbackId, src, revoke) {
+    function show2D(fallbackId, src) {
         const wrap = document.getElementById(fallbackId);
         if (!wrap) return;
         const img = wrap.querySelector('img');
         if (!img) return;
         img.src = src;
         wrap.style.display = 'flex';
-        if (revoke) setTimeout(() => URL.revokeObjectURL(src), 30000);
     }
+
+    /* ---------- Монтаж 3D ---------- */
 
     function mount3D(id, canvas, source) {
         if (typeof skinview3d === 'undefined') return false;
         try {
-            viewers[id] = new skinview3d.SkinViewer({
-                canvas: canvas, width: 220, height: 280, skin: source
+            // Если на canvas уже был viewer — dispose'им, чтобы не было утечек
+            if (viewers[id] && typeof viewers[id].dispose === 'function') {
+                try { viewers[id].dispose(); } catch (e) {}
+            }
+
+            const viewer = new skinview3d.SkinViewer({
+                canvas: canvas,
+                width: 220,
+                height: 280,
+                skin: source
             });
-            const v = viewers[id];
-            v.autoRotate = true;
-            v.autoRotateSpeed = 0.7;
-            v.animation = new skinview3d.WalkingAnimation();
-            v.animation.speed = 0.6;
-            v.fov = 65;
-            v.zoom = 0.85;
+
+            viewer.autoRotate = true;
+            viewer.autoRotateSpeed = 0.7;
+            viewer.fov = 65;
+            viewer.zoom = 0.85;
+
+            // Анимация ходьбы — включаем, если доступна в этой сборке
+            try {
+                if (skinview3d.WalkingAnimation) {
+                    viewer.animation = new skinview3d.WalkingAnimation();
+                    viewer.animation.speed = 0.6;
+                }
+            } catch (e) {
+                console.warn('WalkingAnimation недоступна:', e);
+            }
+
             const wrapper = canvas.closest('.skin-3d-wrapper');
             if (wrapper) wrapper.classList.add('is-walking');
+
+            viewers[id] = viewer;
             return true;
         } catch (e) {
             console.error('3D init error:', e);
@@ -904,36 +890,47 @@
         }
     }
 
+    /* ---------- Главная функция загрузки одного скина ---------- */
+
     async function loadSkin(id, canvasId, errorId, fallbackId, nick) {
         const canvas = document.getElementById(canvasId);
         const errEl = document.getElementById(errorId);
         if (!canvas) return;
 
-        // 1) crossOrigin <img> → используем и для 3D, и оставляем как есть
-        const clean = await tryDirectImg(nick);
-        if (clean) {
-            if (!mount3D(id, canvas, clean.img)) show2D(fallbackId, clean.img.src, false);
-            return;
+        const { cors, plain } = buildSources(nick);
+
+        // 1) Пытаемся получить картинку с CORS → 3D
+        for (const url of cors) {
+            const t0 = performance.now();
+            try {
+                const img = await loadImg(url, true, 6000);
+                const dt = Math.round(performance.now() - t0);
+                console.info(`[skin:${nick}] ✅ CORS <img> ← ${url} (${dt}мс)`);
+
+                if (mount3D(id, canvas, img)) {
+                    return; // 3D построено
+                }
+                // если 3D не получилось — покажем эту же картинку в 2D
+                show2D(fallbackId, url);
+                return;
+            } catch (e) {
+                console.warn(`[skin:${nick}] ❌ CORS <img> ${url} → ${e.message}`);
+            }
         }
 
-        // 2) Прокси → blob → 3D
-        const proxied = await tryProxies(nick);
-        if (proxied) {
-            const url = URL.createObjectURL(proxied.blob);
-            if (!mount3D(id, canvas, url)) show2D(fallbackId, url, true);
-            else setTimeout(() => URL.revokeObjectURL(url), 30000);
-            return;
+        // 2) 2D-фолбэк через обычный <img> (canvas портится, но скин виден)
+        for (const url of plain) {
+            try {
+                await loadImg(url, false, 6000);
+                console.info(`[skin:${nick}] ⚠️ 2D-only ← ${url}`);
+                show2D(fallbackId, url);
+                return;
+            } catch (e) {
+                console.warn(`[skin:${nick}] ❌ plain <img> ${url} → ${e.message}`);
+            }
         }
 
-        // 3) Обычный <img> без crossOrigin → хотя бы 2D
-        const plain = await tryPlainImg(nick);
-        if (plain) {
-            // 3D невозможен (canvas будет испорчен), показываем 2D
-            show2D(fallbackId, plain.img.src, false);
-            return;
-        }
-
-        // 4) Полный провал
+        // 3) Полный провал
         if (errEl) errEl.style.display = 'block';
     }
 
